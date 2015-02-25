@@ -275,7 +275,7 @@ $(window).load(function() {
 		if(typeof localStorage.selectedLanguage != 'undefined' && localStorage.selectedLanguage != null) {
 			window.selectedLanguage = localStorage.selectedLanguage;
 			}
-		else if(typeof window.l[browserLang] != 'undefined') {
+		else if(typeof window.availableLanguages[browserLang] != 'undefined') {
 			window.selectedLanguage =  browserLang;        	
 			}
 		}
@@ -290,89 +290,107 @@ $(window).load(function() {
 		$('title').html('&#x202b;واگذارنده');
 		}
 		
-	// get the translation file and continue after		
-	$.ajax({
-		dataType: "json",
-		url: window.fullUrlToThisQvitterApp + 'locale/' + window.availableLanguages[window.selectedLanguage],
-		error: function(data){console.log(data)},
-		success: function(data) {
-		
-			window.sL = data;
-
-			window.siteTitle = $('head title').html(); // remember this for later use
-
-			// replace placeholders in translation
-			$.each(window.sL,function(k,v){
-				window.sL[k] = v.replace(/{site-title}/g,window.siteTitle);
-				});
-
-			// set some static string
-			$('.front-welcome-text h1').html(window.sL.welcomeHeading);
-			if (window.enableWelcomeText) {
-				$('.front-welcome-text p').html(window.sL.welcomeText);
-			}
-			$('#nickname').attr('placeholder',window.sL.loginUsername);
-			$('#password').attr('placeholder',window.sL.loginPassword);
-			$('button#submit-login').html(window.sL.loginSignIn);
-			$('#rememberme_label').html(window.sL.loginRememberMe);
-			$('#forgot-password').html(window.sL.loginForgotPassword);
-			$('.front-signup h2').html('<strong>' + window.sL.newToQuitter + '</strong> ' + window.sL.signUp);
-			$('#signup-user-name').attr('placeholder',window.sL.signUpFullName);
-			$('#signup-user-email').attr('placeholder',window.sL.signUpEmail);
-			$('#signup-user-password').attr('placeholder',window.sL.loginPassword);
-			$('.front-signup button.signup-btn').html(window.sL.signUpButtonText);
-			$('#user-queets .label').html(window.sL.notices);
-			$('#user-following .label').html(window.sL.following);
-			$('#user-followers .label').html(window.sL.followers);
-			$('#user-groups .label').html(window.sL.groups);
-			$('#queet-box').html(window.sL.compose);
-			$('#queet-box').attr('data-start-text',encodeURIComponent(window.sL.compose));
-			$('#user-footer .queet-button button').html(window.sL.queetVerb);
-			$('#feed-header-inner h2').html(window.sL.queetsNounPlural);
-			$('#logout').html(window.sL.logout);
-			$('#settings').html(window.sL.settings);
-			$('#other-servers-link').html(window.sL.otherServers);
-			$('.language-dropdown .dropdown-toggle small').html(window.sL.languageSelected);
-			$('.language-dropdown .current-language').html(window.sL.languageName);
-			$('.stream-selection[data-stream-name="statuses/friends_timeline.json"]').prepend(window.sL.timeline);
-			$('.stream-selection[data-stream-name="statuses/friends_timeline.json"]').attr('data-stream-header',window.sL.timeline);
-			$('.stream-selection[data-stream-name="statuses/mentions.json"]').prepend(window.sL.mentions);
-			$('.stream-selection[data-stream-name="statuses/mentions.json"]').attr('data-stream-header',window.sL.mentions);
-			$('.stream-selection[data-stream-name="qvitter/statuses/notifications.json"]').prepend(window.sL.notifications);
-			$('.stream-selection[data-stream-name="qvitter/statuses/notifications.json"]').attr('data-stream-header',window.sL.notifications);
-			$('.stream-selection[data-stream-name="favorites.json"]').prepend(window.sL.favoritesNoun);
-			$('.stream-selection[data-stream-name="favorites.json"]').attr('data-stream-header',window.sL.favoritesNoun);
-			$('.stream-selection[data-stream-name="statuses/public_timeline.json"]').prepend(window.sL.publicTimeline);
-			$('.stream-selection[data-stream-name="statuses/public_timeline.json"]').attr('data-stream-header',window.sL.publicTimeline);
-			$('.stream-selection[data-stream-name="statuses/public_and_external_timeline.json"]').prepend(window.sL.publicAndExtTimeline);
-			$('.stream-selection[data-stream-name="statuses/public_and_external_timeline.json"]').attr('data-stream-header',window.sL.publicAndExtTimeline);
-			$('#search-query').attr('placeholder',window.sL.searchVerb);
-			$('#faq-link').html(window.sL.FAQ);
-			$('#invite-link').html(window.sL.inviteAFriend);
-			$('#classic-link').html('Classic ' + window.siteTitle);
-			$('#edit-profile-header-link').html(window.sL.editMyProfile);
-			
-			// show site body now 			
-			$('#user-container').css('display','block');
-			$('#feed').css('display','block');		
-
-			// login or not
-			if(window.loggedIn) {
-				doLogin(getStreamFromUrl());		
+	// if we already have this version of this language in localstorage, we
+	// use that cached version. we do this because $.ajax doesn't respect caching, it seems
+	if(localStorageIsEnabled()
+	&& (typeof localStorage['languageData-' + window.availableLanguages[window.selectedLanguage]] != 'undefined' && localStorage['languageData-' + window.availableLanguages[window.selectedLanguage]] !== null)) {
+		proceedToSetLanguageAndLogin(JSON.parse(localStorage['languageData-' + window.availableLanguages[window.selectedLanguage]]));
+		}	
+	// if we need to get the language file from the server
+	else {
+		$.ajax({
+			dataType: "json",
+			url: window.fullUrlToThisQvitterApp + 'locale/' + window.availableLanguages[window.selectedLanguage],
+			error: function(data){console.log(data)},
+			success: function(data) {
+				
+				// store this response in localstorage
+				if(localStorageIsEnabled())	 {
+					localStorage['languageData-' + window.availableLanguages[window.selectedLanguage]] = JSON.stringify(data);
+					}
+				
+				proceedToSetLanguageAndLogin(data);
 				}
-			else {
-				display_spinner();
-				window.currentStream = ''; // force reload stream
-				setNewCurrentStream(getStreamFromUrl(),function(){
-					logoutWithoutReload(false);
-					remove_spinner();						
-					},true);
-				}	
-			
-			}
+			});
+		
+		}
+
+	});
+	
+// proceed to set language and login
+function proceedToSetLanguageAndLogin(data){
+	window.sL = data;
+
+	window.siteTitle = $('head title').html(); // remember this for later use
+
+	// replace placeholders in translation
+	$.each(window.sL,function(k,v){
+		window.sL[k] = v.replace(/{site-title}/g,window.siteTitle);
 		});
 
-	});	
+	// set some static string
+	$('.front-welcome-text h1').html(window.sL.welcomeHeading);
+	if (window.enableWelcomeText) {
+		$('.front-welcome-text p').html(window.sL.welcomeText);
+	}
+	$('#nickname').attr('placeholder',window.sL.loginUsername);
+	$('#password').attr('placeholder',window.sL.loginPassword);
+	$('button#submit-login').html(window.sL.loginSignIn);
+	$('#rememberme_label').html(window.sL.loginRememberMe);
+	$('#forgot-password').html(window.sL.loginForgotPassword);
+	$('.front-signup h2').html('<strong>' + window.sL.newToQuitter + '</strong> ' + window.sL.signUp);
+	$('#signup-user-name').attr('placeholder',window.sL.signUpFullName);
+	$('#signup-user-email').attr('placeholder',window.sL.signUpEmail);
+	$('#signup-user-password').attr('placeholder',window.sL.loginPassword);
+	$('.front-signup button.signup-btn').html(window.sL.signUpButtonText);
+	$('#user-queets .label').html(window.sL.notices);
+	$('#user-following .label').html(window.sL.following);
+	$('#user-followers .label').html(window.sL.followers);
+	$('#user-groups .label').html(window.sL.groups);
+	$('#queet-box').html(window.sL.compose);
+	$('#queet-box').attr('data-start-text',encodeURIComponent(window.sL.compose));
+	$('#user-footer .queet-button button').html(window.sL.queetVerb);
+	$('#feed-header-inner h2').html(window.sL.queetsNounPlural);
+	$('#logout').html(window.sL.logout);
+	$('#settings').html(window.sL.settings);
+	$('#other-servers-link').html(window.sL.otherServers);
+	$('.language-dropdown .dropdown-toggle small').html(window.sL.languageSelected);
+	$('.language-dropdown .current-language').html(window.sL.languageName);
+	$('.stream-selection[data-stream-name="statuses/friends_timeline.json"]').prepend(window.sL.timeline);
+	$('.stream-selection[data-stream-name="statuses/friends_timeline.json"]').attr('data-stream-header',window.sL.timeline);
+	$('.stream-selection[data-stream-name="statuses/mentions.json"]').prepend(window.sL.mentions);
+	$('.stream-selection[data-stream-name="statuses/mentions.json"]').attr('data-stream-header',window.sL.mentions);
+	$('.stream-selection[data-stream-name="qvitter/statuses/notifications.json"]').prepend(window.sL.notifications);
+	$('.stream-selection[data-stream-name="qvitter/statuses/notifications.json"]').attr('data-stream-header',window.sL.notifications);
+	$('.stream-selection[data-stream-name="favorites.json"]').prepend(window.sL.favoritesNoun);
+	$('.stream-selection[data-stream-name="favorites.json"]').attr('data-stream-header',window.sL.favoritesNoun);
+	$('.stream-selection[data-stream-name="statuses/public_timeline.json"]').prepend(window.sL.publicTimeline);
+	$('.stream-selection[data-stream-name="statuses/public_timeline.json"]').attr('data-stream-header',window.sL.publicTimeline);
+	$('.stream-selection[data-stream-name="statuses/public_and_external_timeline.json"]').prepend(window.sL.publicAndExtTimeline);
+	$('.stream-selection[data-stream-name="statuses/public_and_external_timeline.json"]').attr('data-stream-header',window.sL.publicAndExtTimeline);
+	$('#search-query').attr('placeholder',window.sL.searchVerb);
+	$('#faq-link').html(window.sL.FAQ);
+	$('#invite-link').html(window.sL.inviteAFriend);
+	$('#classic-link').html('Classic ' + window.siteTitle);
+	$('#edit-profile-header-link').html(window.sL.editMyProfile);
+	
+	// show site body now 			
+	$('#user-container').css('display','block');
+	$('#feed').css('display','block');		
+
+	// login or not
+	if(window.loggedIn) {
+		doLogin(getStreamFromUrl());		
+		}
+	else {
+		display_spinner();
+		window.currentStream = ''; // force reload stream
+		setNewCurrentStream(getStreamFromUrl(),function(){
+			logoutWithoutReload(false);
+			remove_spinner();						
+			},true);
+		}	
+	}	
 
 /* · 
    · 
@@ -554,16 +572,15 @@ function logoutWithoutReload(doShake) {
 											
 	$('input#nickname').focus();	
 	$('.front-signup').animate({opacity:'1'},200);
-	if(doShake || localStorage.doShake) {
+	if(doShake) {
 		$('input#nickname').css('background-color','pink');
 		$('input#password').css('background-color','pink');		
 		}
 	$('#login-content').animate({opacity:'1'},200, function(){
-		if(doShake || localStorage.doShake) {
+		if(doShake) {
 			$('#login-content').effect('shake',{distance:5,times:2},function(){
 				$('input#nickname').animate({backgroundColor:'#fff'},1000);
 				$('input#password').animate({backgroundColor:'#fff'},1000);					
-				delete localStorage.doShake;
 				});
 			}
 		$('.front-welcome-text').fadeIn(3000);						
@@ -1325,6 +1342,7 @@ $('body').on('click','#new-queets-bar',function(){
 
 $('body').on('click','.queet',function (event) {
 	if(!$(event.target).is('a')
+		&& !$(event.target).is('video')
 		&& !$(event.target).is('.cm-mention')
 		&& !$(event.target).is('.cm-tag')
 		&& !$(event.target).is('.cm-group')
