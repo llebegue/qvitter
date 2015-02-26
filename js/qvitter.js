@@ -993,7 +993,7 @@ $('body').on('click','a', function(e) {
 			$(this).addClass('external-profile-clicked');
 			getFromAPI('qvitter/external_user_show.json?profileurl=' + encodeURIComponent($(this).attr('href')),function(data){
 
-				if(data) {
+				if(data && data.external !== null) {
 					
 					// local profile id and follow class
 					var followLocalIdHtml = '';
@@ -1056,8 +1056,10 @@ $('body').on('click','a', function(e) {
 					}
 				// if external lookup failed, trigger click again. 
 				// it will not be hijacked since we don't remove the external-profile-clicked class here 
-				else {	
-					$('.external-profile-clicked').trigger('click');
+				else {
+					remove_spinner();	
+					$('.external-profile-clicked')[0].click();
+					$('.external-profile-clicked').removeClass('external-profile-clicked');
 					}
 				
 				});				
@@ -1221,7 +1223,7 @@ $(window).scroll(function() {
 				}
 			// normal streams
 			else {
-				var getVars = qOrAmp(window.currentStream) + 'max_id=' + ($('#feed-body').children('.stream-item').last().attr('data-quitter-id-in-stream')-1);
+				var getVars = qOrAmp(window.currentStream) + 'max_id=' + ($('#feed-body').children('.stream-item').last().attr('data-quitter-id-in-stream'));
 				}
 			
 			display_spinner('#footer-spinner-container');		
@@ -1466,6 +1468,12 @@ $('body').on('click','.action-rt-container .icon:not(.is-mine)',function(){
 			if(data) {
 				// success
 				this_stream_item.attr('data-requeeted-by-me-id',data.id);
+				getFavsAndRequeetsForQueet(this_stream_item, this_stream_item.attr('data-quitter-id'));	
+				
+				// mark all instances of this notice as repeated
+				$('.stream-item[data-quitter-id="' + this_stream_item.attr('data-quitter-id') + '"]').addClass('requeeted');
+				$('.stream-item[data-quitter-id="' + this_stream_item.attr('data-quitter-id') + '"]').attr('data-requeeted-by-me-id',data.id);				
+				$('.stream-item[data-quitter-id="' + this_stream_item.attr('data-quitter-id') + '"]').children('.queet').find('.action-rt-container').children('.with-icn').addClass('done');
 				}
 			else {
 				// error
@@ -1479,23 +1487,13 @@ $('body').on('click','.action-rt-container .icon:not(.is-mine)',function(){
 	else if(this_action.children('.with-icn').hasClass('done')) {
 		display_spinner();	
 		
-		// if we don't have the id od the repeat stored in DOM, we need to look it up 
-		// (might be a problem if there's more than 100 repeats)
-		if(typeof this_stream_item.attr('data-requeeted-by-me-id') == 'undefined') {
-			getFavsOrRequeetsForQueet('requeets',this_stream_item.attr('data-quitter-id'),function(data) {
-				$.each(data,function(key,obj){
-					if(window.myUserID == obj.user.id) {
-						var my_rq_id = obj.id;
-						unRequeet(this_stream_item, this_action, my_rq_id);
-						}
-					});								
-				});			
-			}
-		// if we have the id stored in DOM 
-		else {
-			var my_rq_id = this_stream_item.attr('data-requeeted-by-me-id');
-			unRequeet(this_stream_item, this_action, my_rq_id);
-			}
+		var my_rq_id = this_stream_item.attr('data-requeeted-by-me-id');
+		unRequeet(this_stream_item, this_action, my_rq_id);
+		
+		// mark all instances of this notice as non-repeated
+		$('.stream-item[data-quitter-id="' + this_stream_item.attr('data-quitter-id') + '"]').removeClass('requeeted');
+		$('.stream-item[data-quitter-id="' + this_stream_item.attr('data-quitter-id') + '"]').removeAttr('data-requeeted-by-me-id');				
+		$('.stream-item[data-quitter-id="' + this_stream_item.attr('data-quitter-id') + '"]').children('.queet').find('.action-rt-container').children('.with-icn').removeClass('done');		
 		}			
 	});
 	
@@ -1530,6 +1528,11 @@ $('body').on('click','.action-fav-container',function(){
 		postActionToAPI('favorites/create/' + this_stream_item.attr('data-quitter-id') + '.json', function(data) {
 			if(data) {
 				// success
+				getFavsAndRequeetsForQueet(this_stream_item, this_stream_item.attr('data-quitter-id'));	
+				
+				// mark all instances of this notice as favorited
+				$('.stream-item[data-quitter-id="' + this_stream_item.attr('data-quitter-id') + '"]').addClass('favorited');
+				$('.stream-item[data-quitter-id="' + this_stream_item.attr('data-quitter-id') + '"]').children('.queet').find('.action-fav-container').children('.with-icn').addClass('done');				
 				}
 			else {
 				// error
@@ -1551,6 +1554,11 @@ $('body').on('click','.action-fav-container',function(){
 			if(data) {
 				// success
 				remove_spinner();
+				getFavsAndRequeetsForQueet(this_stream_item, this_stream_item.attr('data-quitter-id'));				
+
+				// mark all instances of this notice as non-favorited
+				$('.stream-item[data-quitter-id="' + this_stream_item.attr('data-quitter-id') + '"]').removeClass('favorited');
+				$('.stream-item[data-quitter-id="' + this_stream_item.attr('data-quitter-id') + '"]').children('.queet').find('.action-fav-container').children('.with-icn').removeClass('done');								
 				}
 			else {
 				// error
@@ -1592,7 +1600,7 @@ $('body').on('click','.action-reply-container',function(){
 	var $queetHtmlExpandedContent = $queetHtml.find('.expanded-content');
 	$queetHtmlExpandedContent.remove();		
 	var queetHtmlWithoutFooter = $queetHtml.html();
-	popUpAction('popup-reply-' + this_stream_item_id, window.sL.replyTo + ' ' + this_stream_item.find('.screen-name').html(),replyFormHtml(this_stream_item,this_stream_item_id),queetHtmlWithoutFooter);
+	popUpAction('popup-reply-' + this_stream_item_id, window.sL.replyTo + ' ' + this_stream_item.children('.queet').find('.screen-name').html(),replyFormHtml(this_stream_item,this_stream_item_id),queetHtmlWithoutFooter);
 
 	// fix the width of the queet box, otherwise the syntax highlighting break
 	var queetBoxWidth = $('#popup-reply-' + this_stream_item_id).find('.modal-body').find('.inline-reply-queetbox').width()-20;
@@ -2122,7 +2130,7 @@ $('body').on('keyup', 'div.queet-box-syntax', function(e) {
   	
 $('body').on('click','.view-more-container-bottom', function(){
 	var thisParentStreamItem = $(this).parent('.stream-item');
-	findReplyToStatusAndShow($(this).parent('.stream-item').attr('data-quitter-id'),$(this).attr('data-replies-after'));
+	findReplyToStatusAndShow(thisParentStreamItem, thisParentStreamItem.attr('data-quitter-id'),$(this).attr('data-replies-after'));
 	$(this).remove();
 	findAndMarkLastVisibleInConversation(thisParentStreamItem);	
 	});
@@ -2134,14 +2142,14 @@ $('body').on('click','.view-more-container-top', function(){
 	rememberMyScrollPos(queet,'moretop' + this_qid);
 
 
-	findInReplyToStatusAndShow($(this).parent('.stream-item').attr('data-quitter-id'),$(this).attr('data-trace-from'),false,true);
+	findInReplyToStatusAndShow(thisParentStreamItem, thisParentStreamItem.attr('data-quitter-id'),$(this).attr('data-trace-from'),false,true);
 	$(this).remove();
 
 	backToMyScrollPos(queet,'moretop' + this_qid,false);	
 
 	// remove the "show full conversation" link if nothing more to show
-	if($(this).parent('.stream-item').find('.hidden-conversation').length == 0) {
-		$(this).parent('.stream-item').children('.queet').find('.show-full-conversation').remove();
+	if(thisParentStreamItem.find('.hidden-conversation').length == 0) {
+		thisParentStreamItem.children('.queet').find('.show-full-conversation').remove();
 		}		
 	findAndMarkLastVisibleInConversation(thisParentStreamItem);		
 	});	
