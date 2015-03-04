@@ -76,10 +76,10 @@ $(window).scroll(function(e){
    · 
    · · · · · · · · · · · · · */ 
 	
-$('#federated-tooltip').on('mouseenter',function(){
+$('body').on('mouseenter','#federated-tooltip',function(){
 	$('#what-is-federation').fadeIn(100);
 	});
-$('#what-is-federation').on('mouseleave',function(){
+$('body').on('mouseleave','#what-is-federation',function(){
 	$('#what-is-federation').fadeOut(100);
 	});	
 
@@ -1860,11 +1860,11 @@ $('body').on('mousedown','.syntax-two',function () {
 	});	
 $('body').on('blur','.queet-box-syntax',function (e) {	
 	
-	// don't collapse if upload-image-button has been clicked
-	var uploadImageButton = $(this).siblings('.queet-toolbar').find('button.upload-image');
-	if(uploadImageButton.hasClass('clicked')) {	
-		uploadImageButton.removeClass('clicked');
-		return true;
+	// don't collapse if a toolbar button has been clicked
+	var clickedToolbarButtons = $(this).siblings('.queet-toolbar').find('button.clicked');
+	if(clickedToolbarButtons.length>0) {
+		clickedToolbarButtons.removeClass('clicked');
+		return true;		
 		}
 
 	// don't collapse if we're clicking around inside queet-box
