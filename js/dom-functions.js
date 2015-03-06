@@ -979,8 +979,8 @@ function expand_queet(q,doScrolling) {
 				// attachments in the content link to /attachment/etc url and not direct to image/video, link is in title
 				if(typeof attachment_title != 'undefined') {
 					// images
-					if($.inArray(attachment_mimetype, ['image/gif', 'image/jpeg', 'image/png']) >= 0
-					|| $.inArray(attachment_title_extension, ['jpeg', 'gif', 'jpg','png']) >= 0) {
+					if($.inArray(attachment_mimetype, ['image/gif', 'image/jpeg', 'image/png', 'image/svg+xml']) >= 0
+					|| $.inArray(attachment_title_extension, ['jpeg', 'gif', 'jpg','png','svg']) >= 0) {
 						if(q.children('.queet').find('.expanded-content').children('.media').children('a[href="' + attachment_title + '"]').length < 1) { // not if already showed
 							
 							// local attachment with a thumbnail
@@ -1215,29 +1215,17 @@ function convertNewGNUSocialURItoURL(obj) {
 function getConversation(q, qid) {
 
 	// check if we have a conversation for this notice cached in localstorage
-	if(localStorageIsEnabled()) {
-
-		if(typeof localStorage['conversation-' + qid] != 'undefined' && localStorage['conversation-' + qid] !== null) {
-			showConversation(q, qid, JSON.parse(localStorage['conversation-' + qid]));
-			}	
-		// if we have a conversation for the notice that this notice is a reply to, 
-		// we assume it's the same conversation, and use that
-		else if(q.attr('data-in-reply-to-status-id') !== null
-		&& q.attr('data-in-reply-to-status-id') != 'null'
-		&& typeof localStorage['conversation-' + q.attr('data-in-reply-to-status-id')] != 'undefined'
-		&& localStorage['conversation-' + q.attr('data-in-reply-to-status-id')] !== null) {
-			showConversation(q, qid, JSON.parse(localStorage['conversation-' + q.attr('data-in-reply-to-status-id')]));
-			}				
-		
-		}
+	localStorageObjectCache_GET('conversation',q.attr('data-conversation-id'), function(data){
+		if(data) {
+			showConversation(q, qid, data);
+			}
+		});
 	
 	// always get most recent conversation from server
-	getFromAPI('statusnet/conversation/' + $('#stream-item-' + qid).attr('data-conversation-id') + '.json?count=100', function(data){ if(data) { 
+	getFromAPI('statusnet/conversation/' + q.attr('data-conversation-id') + '.json?count=100', function(data){ if(data) { 
 
 		// cache in localstorage
-		if(localStorageIsEnabled()) {
-			localStorage['conversation-' + qid] = JSON.stringify(data);
-			}
+		localStorageObjectCache_STORE('conversation',q.attr('data-conversation-id'), data);
 
 		showConversation(q, qid,data);	
 		}});
@@ -1509,6 +1497,12 @@ function addToFeed(feed, after, extraClasses, isReply) {
 					ostatusHtml = '<a target="_blank" title="' + window.sL.goToOriginalNotice + '" class="ostatus-link" href="' + obj.statusnet_profile_url + '"></a>';
 					}				
 				
+				// rtl or not
+				var rtlOrNot = '';
+				if($('body').hasClass('rtl')) {
+					rtlOrNot = 'rtl';
+					}
+				
 				// show user actions
 				var followingClass = '';
 				if(obj.following) {
@@ -1522,7 +1516,7 @@ function addToFeed(feed, after, extraClasses, isReply) {
 						}
 					}
 				
-				var userHtml = '<div id="stream-item-' + obj.id + '" class="stream-item user"><div class="queet">' + followButton + '<div class="queet-content"><div class="stream-item-header"><a class="account-group" href="' + obj.statusnet_profile_url + '"><img class="avatar" src="' + obj.profile_image_url_profile_size + '" /><strong class="name" data-user-id="' + obj.id + '">' + obj.name + '</strong> <span class="screen-name">@' + obj.screen_name + '</span></a>' + ostatusHtml + '</div><div class="queet-text">' + obj.description + '</div></div></div></div>';
+				var userHtml = '<div id="stream-item-' + obj.id + '" class="stream-item user"><div class="queet ' + rtlOrNot + '">' + followButton + '<div class="queet-content"><div class="stream-item-header"><a class="account-group" href="' + obj.statusnet_profile_url + '"><img class="avatar" src="' + obj.profile_image_url_profile_size + '" /><strong class="name" data-user-id="' + obj.id + '">' + obj.name + '</strong> <span class="screen-name">@' + obj.screen_name + '</span></a>' + ostatusHtml + '</div><div class="queet-text">' + obj.description + '</div></div></div></div>';
 				
 				if(after) {
 					$('#' + after).after(userHtml);							
@@ -1544,6 +1538,12 @@ function addToFeed(feed, after, extraClasses, isReply) {
 				obj.description = obj.description || '';
 				obj.stream_logo = obj.stream_logo || window.fullUrlToThisQvitterApp + 'img/default-avatar-profile.png';
 	
+				// rtl or not
+				var rtlOrNot = '';
+				if($('body').hasClass('rtl')) {
+					rtlOrNot = 'rtl';
+					}
+	
 				// show group actions if logged in
 				var memberClass = '';
 				if(obj.member) {
@@ -1558,7 +1558,7 @@ function addToFeed(feed, after, extraClasses, isReply) {
 				if(obj.homepage_logo != null) {
 					groupAvatar = obj.homepage_logo;
 					}
-				var groupHtml = '<div id="stream-item-' + obj.id + '" class="stream-item user"><div class="queet">' + memberButton + '<div class="queet-content"><div class="stream-item-header"><a class="account-group" href="' + obj.url + '"><img class="avatar" src="' + groupAvatar + '" /><strong class="name" data-group-id="' + obj.id + '">' + obj.fullname + '</strong> <span class="screen-name">!' + obj.nickname + '</span></a></div><div class="queet-text">' + obj.description + '</div></div></div></div>';
+				var groupHtml = '<div id="stream-item-' + obj.id + '" class="stream-item user"><div class="queet ' + rtlOrNot + '">' + memberButton + '<div class="queet-content"><div class="stream-item-header"><a class="account-group" href="' + obj.url + '"><img class="avatar" src="' + groupAvatar + '" /><strong class="name" data-group-id="' + obj.id + '">' + obj.fullname + '</strong> <span class="screen-name">!' + obj.nickname + '</span></a></div><div class="queet-text">' + obj.description + '</div></div></div></div>';
 	
 				if(after) {
 					$('#' + after).after(groupHtml);							
@@ -1807,6 +1807,9 @@ function buildQueetHtml(obj, idInStream, extraClassesThisRun, requeeted_by, isCo
 					}
 				
 				attachment_html = attachment_html + '<a href="' + this.url + '"><img data-mime-type="' + this.mimetype + '" data-big-thumbnail="' + window.siteAttachmentURLBase + this.id + '/thumbnail?w=' + bigThumbW + '&h=' + bigThumbH + '" src="' + thumb_url + '"/></a>';
+				}
+			else if (this.mimetype == 'image/svg+xml') {
+				attachment_html = attachment_html + '<a href="' + this.url + '"><img data-mime-type="' + this.mimetype + '" src="' + this.url + '"/></a>';
 				}
 			});
 		}	
