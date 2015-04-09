@@ -1339,6 +1339,9 @@ body.rtl #footer-spinner-container {
     height:auto;
 /*     position:relative; */
 	}
+.stream-item.collapsing {
+	overflow:hidden;
+	}
 .stream-item.hidden {
 	display:none;
 	}
@@ -1361,7 +1364,6 @@ body.rtl #footer-spinner-container {
 	background-color:#F6F6F6;
 	}	
 .stream-item.conversation.visible {
-	overflow: hidden;
 	opacity:1;	
 	}	
 .stream-item.conversation.hidden-conversation {

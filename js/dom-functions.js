@@ -854,7 +854,6 @@ function expand_queet(q,doScrolling) {
 			q.find('.inline-reply-caret').remove();
 			
 			q.addClass('collapsing');
-			q.css('overflow','hidden');
 			if(q.hasClass('conversation')) {
 				q.removeClass('expanded');	 
 				q.removeClass('collapsing');				
@@ -958,8 +957,8 @@ function expand_queet(q,doScrolling) {
 			q.find('.stream-item-footer').before('<div class="expanded-content"><div class="queet-stats-container"></div><div class="client-and-actions"><span class="metadata">' + metadata + '</span></div></div>');					
 	
 			
-			// maybe show images or videos
-			$.each($('#' + q.children('.queet').attr('id') + ' .queet-text, #' + q.children('.queet').attr('id') + ' > .attachments').find('a'), function() {
+			// maybe show images or videos, look for them in both the text and in the thumbnail container
+			$.each(q.children('.queet').find('.queet-text, .attachments').find('a'), function() {
 
 				var attachment_mimetype = $(this).find('img').attr('data-mime-type');
 
@@ -1026,7 +1025,7 @@ function expand_queet(q,doScrolling) {
 					}
 					else if(attachment_title.indexOf('youtube.com/watch?v=') > -1 || attachment_title.indexOf('://youtu.be/') > -1) {
 						var youtubeId = attachment_title.replace('http://www.youtube.com/watch?v=','').replace('https://www.youtube.com/watch?v=','').replace('http://youtu.be/','').replace('https://youtu.be/','').substr(0,11);
-						if(q.children('.queet').find('.expanded-content').children('.media').children('iframe').attr('src') != '//www.youtube.com/embed/' + youtubeId) { // not if already showed
+						if(q.children('.queet').find('.expanded-content').children('.media').children('iframe[src="//www.youtube.com/embed/' + youtubeId + '"]').length < 1) { // not if already showed
 							q.children('.queet').find('.expanded-content').prepend('<div class="media"><iframe width="420" height="315" src="//www.youtube.com/embed/' + youtubeId + '" frameborder="0" allowfullscreen></iframe></div>');						
 							}
 						}
@@ -1330,7 +1329,9 @@ function findInReplyToStatusAndShow(q, qid,reply,only_first,onlyINreplyto) {
 		reply_found.css('opacity','1');
 		if(only_first && reply_found_reply_to.length>0) {
 			if(q.children('.view-more-container-top').length < 1) {
-				reply_found.before('<div class="view-more-container-top" data-trace-from="' + reply + '"><a>' + window.sL.viewMoreInConvBefore + '</a></div>');							
+				if(q.children('.queet').prevAll('.hidden-conversation').length>0) {	
+					q.prepend('<div class="view-more-container-top" data-trace-from="' + reply + '"><a>' + window.sL.viewMoreInConvBefore + '</a></div>');												
+					}
 				}
 			findReplyToStatusAndShow(q, qid,qid,true);
 			}
@@ -1362,7 +1363,9 @@ function findReplyToStatusAndShow(q, qid,this_id,only_first) {
 			}					
 		if(only_first && reply_founds_reply.length>0) {
 			if(q.children('.view-more-container-bottom').length < 1) {
-				q.append('<div class="view-more-container-bottom" data-replies-after="' + qid + '"><a>' + window.sL.viewMoreInConvAfter + '</a></div>');			
+				if(q.children('.queet').nextAll('.hidden-conversation').length>0) {	
+					q.append('<div class="view-more-container-bottom" data-replies-after="' + qid + '"><a>' + window.sL.viewMoreInConvAfter + '</a></div>');			
+					}			
 				}		
 			}
 		
@@ -1787,7 +1790,6 @@ function buildQueetHtml(obj, idInStream, extraClassesThisRun, requeeted_by, isCo
 	// image attachment thumbnails
 	var attachment_html = '';
 	if(typeof obj.attachments != "undefined") {
-		obj.attachments.reverse(); // last on top
 		$.each(obj.attachments, function(){
 			if(this.id != null) {
 				var bigThumbW = 1000;
