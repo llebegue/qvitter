@@ -168,7 +168,32 @@ class QvitterAction extends ApiAction
 				
 				
 				
-				?><script>
+				?>
+				<script>
+				
+					/*    
+					@licstart  The following is the entire license notice for the 
+					JavaScript code in this page.
+
+					Copyright (C) 2015  Hannes Mannerheim and other contributors
+
+					This program is free software: you can redistribute it and/or modify
+					it under the terms of the GNU Affero General Public License as
+					published by the Free Software Foundation, either version 3 of the
+					License, or (at your option) any later version.
+
+					This program is distributed in the hope that it will be useful,
+					but WITHOUT ANY WARRANTY; without even the implied warranty of
+					MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+					GNU Affero General Public License for more details.
+
+					You should have received a copy of the GNU Affero General Public License
+					along with this program.  If not, see <http://www.gnu.org/licenses/>.  
+
+					@licend  The above is the entire license notice
+					for the JavaScript code in this page.
+					*/
+						
 					window.defaultAvatarStreamSize = <?php print json_encode(Avatar::defaultImage(AVATAR_STREAM_SIZE)) ?>;
 					window.textLimit = <?php print json_encode((int)common_config('site','textlimit')) ?>;
 					window.registrationsClosed = <?php print json_encode($registrationsclosed) ?>;
@@ -200,7 +225,8 @@ class QvitterAction extends ApiAction
 					window.defaultLinkColor = '<?php print QvitterPlugin::settings("defaultlinkcolor"); ?>';
 					window.defaultBackgroundColor = '<?php print QvitterPlugin::settings("defaultbackgroundcolor"); ?>';
 					window.siteBackground = '<?php print QvitterPlugin::settings("sitebackground"); ?>';
-					window.enableWelcomeText = '<?php print QvitterPlugin::settings("enablewelcometext"); ?>';
+					window.enableWelcomeText = <?php print json_encode(QvitterPlugin::settings("enablewelcometext")); ?>;
+					window.customWelcomeText = <?php print json_encode(QvitterPlugin::settings("customwelcometext")); ?>;
 					window.urlShortenerAPIURL = '<?php print QvitterPlugin::settings("urlshortenerapiurl"); ?>';					
 					window.urlShortenerSignature = '<?php print QvitterPlugin::settings("urlshortenersignature"); ?>';
 					window.commonSessionToken = '<?php print common_session_token(); ?>';
@@ -391,8 +417,6 @@ class QvitterAction extends ApiAction
 						}														
 					
 					?><div class="front-welcome-text <?php if ($registrationsclosed) { print 'registrations-closed'; } ?>">
-						<h1></h1>
-						<p></p>
 					</div>		
 					<div id="user-container" style="display:none;">		
 						<div id="login-content">
@@ -488,16 +512,16 @@ class QvitterAction extends ApiAction
 			
 					<div id="footer"><div id="footer-spinner-container"></div></div>
 				</div>
-				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/lib/jquery-2.1.3.min.js"></script>
-				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/lib/jquery-ui-1.10.3.min.js"></script>
-				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/lib/jquery.minicolors.min.js"></script>	    	    
-				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/lib/jquery.jWindowCrop.js"></script>	
-				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/lib/load-image.min.js"></script>
-				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/lib/xregexp-all-min-2.0.0.js"></script>				
-				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/dom-functions.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/dom-functions.js')); ?>"></script>
-				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/misc-functions.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/misc-functions.js')); ?>"></script>
-				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/ajax-functions.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/ajax-functions.js')); ?>"></script>
-				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/qvitter.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/qvitter.js')); ?>"></script>
+				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/lib/jquery-2.1.4.min.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/lib/jquery-2.1.4.min.js')); ?>"></script>
+				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/lib/jquery-ui-1.10.3.min.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/lib/jquery-ui-1.10.3.min.js')); ?>"></script>
+				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/lib/jquery.minicolors.min.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/lib/jquery.minicolors.min.js')); ?>"></script>	    	    
+				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/lib/jquery.jWindowCrop.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/lib/jquery.jWindowCrop.js')); ?>"></script>	
+				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/lib/load-image.min.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/lib/load-image.min.js')); ?>"></script>
+				<script type="text/javascript" src="<?php print $qvitterpath; ?>js/lib/xregexp-all-min-2.0.0.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/lib/xregexp-all-min-2.0.0.js')); ?>"></script>				
+				<script charset="utf-8" type="text/javascript" src="<?php print $qvitterpath; ?>js/dom-functions.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/dom-functions.js')); ?>"></script>
+				<script charset="utf-8" type="text/javascript" src="<?php print $qvitterpath; ?>js/misc-functions.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/misc-functions.js')); ?>"></script>
+				<script charset="utf-8" type="text/javascript" src="<?php print $qvitterpath; ?>js/ajax-functions.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/ajax-functions.js')); ?>"></script>
+				<script charset="utf-8" type="text/javascript" src="<?php print $qvitterpath; ?>js/qvitter.js?changed=<?php print date('YmdHis',filemtime(QVITTERDIR.'/js/qvitter.js')); ?>"></script>
 				<?php
 				
 					// event for other plugins to add scripts to qvitter

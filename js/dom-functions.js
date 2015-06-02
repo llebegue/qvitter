@@ -1,37 +1,41 @@
 
- /* · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·  
-  ·                                                                             ·
-  ·                                                                             ·
-  ·                             Q V I T T E R                                   ·
-  ·                                                                             ·
-  ·              http://github.com/hannesmannerheim/qvitter                     ·
-  ·                                                                             ·
-  ·                                                                             ·
-  ·                                 <o)                                         ·
-  ·                                  /_////                                     ·
-  ·                                 (____/                                      ·
-  ·                                          (o<                                ·
-  ·                                   o> \\\\_\                                 ·
-  ·                                 \\)   \____)                                ·
-  ·                                                                             ·
-  ·                                                                             ·    
-  ·                                                                             ·
-  ·  Qvitter is free  software:  you can  redistribute it  and / or  modify it  ·
-  ·  under the  terms of the GNU Affero General Public License as published by  ·
-  ·  the Free Software Foundation,  either version three of the License or (at  ·
-  ·  your option) any later version.                                            ·
-  ·                                                                             ·
-  ·  Qvitter is distributed  in hope that  it will be  useful but  WITHOUT ANY  ·
-  ·  WARRANTY;  without even the implied warranty of MERCHANTABILTY or FITNESS  ·
-  ·  FOR A PARTICULAR PURPOSE.  See the  GNU Affero General Public License for  ·
-  ·  more details.                                                              ·
-  ·                                                                             ·
-  ·  You should have received a copy of the  GNU Affero General Public License  ·
-  ·  along with Qvitter. If not, see <http://www.gnu.org/licenses/>.            ·
-  ·                                                                             ·
-  ·  Contact h@nnesmannerhe.im if you have any questions.                       ·
-  ·                                                                             · 
-  · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · */
+/*· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
+  ·                                                                               ·
+  ·                                                                               ·
+  ·                             Q V I T T E R                                     ·
+  ·                                                                               ·
+  ·                                                                               ·  
+  ·                                 <o)                                           ·
+  ·                                  /_////                                       ·
+  ·                                 (____/                                        ·
+  ·                                          (o<                                  ·
+  ·                                   o> \\\\_\                                   ·
+  ·                                 \\)   \____)                                  ·  
+  ·                                                                               ·
+  ·                                                                               ·  
+  ·     @licstart  The following is the entire license notice for the             ·
+  ·     JavaScript code in this page.                                             ·
+  ·                                                                               ·
+  ·     Copyright (C) 2015  Hannes Mannerheim and other contributors              ·
+  ·                                                                               ·    
+  ·                                                                               ·
+  ·     This program is free software: you can redistribute it and/or modify      ·
+  ·     it under the terms of the GNU Affero General Public License as            ·
+  ·     published by the Free Software Foundation, either version 3 of the        ·
+  ·     License, or (at your option) any later version.                           ·
+  ·                                                                               ·
+  ·     This program is distributed in the hope that it will be useful,           ·
+  ·     but WITHOUT ANY WARRANTY; without even the implied warranty of            ·
+  ·     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             ·
+  ·     GNU Affero General Public License for more details.                       ·
+  ·                                                                               ·
+  ·     You should have received a copy of the GNU Affero General Public License  ·
+  ·     along with this program.  If not, see <http://www.gnu.org/licenses/>.     ·
+  ·                                                                               ·
+  ·     @licend  The above is the entire license notice                           · 
+  ·     for the JavaScript code in this page.                                     · 
+  ·                                                                               · 
+  · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · */
 
 
 /* ·  
@@ -183,12 +187,12 @@ function profileCardFromFirstObject(data,screen_name) {
 		// is webpage empty?
 		var emptyWebpage = '';
 		if(first.user.url.length<1) {
-			emptyWebpage = ' empty';				
+			emptyWebpage = ' empty';			
 			}
 
 			
 		// change design
-		changeDesign(first.user);			
+		changeDesign({backgroundimage:first.user.background_image, backgroundcolor:first.user.backgroundcolor, linkcolor:first.user.linkcolor});
 
 		// remove any old profile card 
 		$('#feed').siblings('.profile-card').remove();
@@ -241,7 +245,7 @@ function profileCardFromFirstObject(data,screen_name) {
 				}
 				
 			// change design
-			changeDesign(data);
+			changeDesign({backgroundimage:data.background_image, backgroundcolor:data.backgroundcolor, linkcolor:data.linkcolor});
 
 			// remove any old profile card and show profile card
 			$('#feed').siblings('.profile-card').remove();
@@ -289,6 +293,10 @@ function groupProfileCard(groupAlias) {
 		if(typeof window.loggedIn.screen_name == 'undefined') {			
 			var memberButton = '<div class="user-actions"><button type="button" class="external-member-button"><span class="button-text join-text"><i class="join"></i>' + window.sL.joinExternalGroup + '</span></button></div>';	
 			}			
+
+		// change design
+		changeDesign({backgroundimage:false, backgroundcolor:false, linkcolor:false});
+
 		
 		// add card to DOM
 		$('#feed').siblings('.profile-card').remove();  // remove any old profile card 
@@ -433,7 +441,7 @@ function setNewCurrentStream(stream,actionOnSuccess,setLocation) {
 		addStreamToHistoryMenuAndMarkAsCurrent(streamHeader, defaultStreamName);	
 		
 		// and change design immediately
-		changeDesign(window.oldStreamsDesigns[window.currentStream]);
+		changeDesign(window.oldStreamsDesigns[theUserOrGroupThisStreamBelongsTo(window.currentStream)]);
 		}
 
 	// otherwise we fade out and wait for stream to load
@@ -462,7 +470,7 @@ function setNewCurrentStream(stream,actionOnSuccess,setLocation) {
 						if(window.currentStream == stream) {	
 							
 							// change design
-							changeDesign(window);
+							changeDesign({backgroundimage:window.loggedIn.background_image, backgroundcolor:window.loggedIn.backgroundcolor, linkcolor:window.loggedIn.linkcolor});
 							
 							// get screen name from stream, if not found, this is me
 							if(stream.indexOf('screen_name=')>-1) {
@@ -504,7 +512,7 @@ function setNewCurrentStream(stream,actionOnSuccess,setLocation) {
 				if(window.currentStream == stream) {
 					
 					// change design
-					changeDesign(window);
+					changeDesign({backgroundimage:window.loggedIn.background_image, backgroundcolor:window.loggedIn.backgroundcolor, linkcolor:window.loggedIn.linkcolor});
 						
 					// show profile card if this is a user's queet stream
 					if(stream.substring(0,27) == 'statuses/user_timeline.json')	{
@@ -555,7 +563,7 @@ function addStreamToHistoryMenuAndMarkAsCurrent(streamHeader, defaultStreamName)
 
 	if($('.stream-selection[data-stream-header="' + streamHeader + '"]').length==0
 	&& streamHeader != '@' + window.loggedIn.screen_name
-	&& typeof window.loggedIn.screen_name != 'undefined') { 			
+	&& typeof window.loggedIn.screen_name != 'undefined') { 			
 		$('#history-container').append('<a class="stream-selection" data-stream-header="' + streamHeader + '" href="' + window.siteInstanceURL + convertStreamToPath(defaultStreamName) + '">' + streamHeader + '<i class="chev-right"></i></a>');
 		updateHistoryLocalStorage();
 		}

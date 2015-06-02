@@ -1,37 +1,41 @@
 
- /* · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·  
-  ·                                                                             ·
-  ·                                                                             ·
-  ·                             Q V I T T E R                                   ·
-  ·                                                                             ·
-  ·              http://github.com/hannesmannerheim/qvitter                     ·
-  ·                                                                             ·
-  ·                                                                             ·
-  ·                                 <o)                                         ·
-  ·                                  /_////                                     ·
-  ·                                 (____/                                      ·
-  ·                                          (o<                                ·
-  ·                                   o> \\\\_\                                 ·
-  ·                                 \\)   \____)                                ·
-  ·                                                                             ·
-  ·                                                                             ·    
-  ·                                                                             ·
-  ·  Qvitter is free  software:  you can  redistribute it  and / or  modify it  ·
-  ·  under the  terms of the GNU Affero General Public License as published by  ·
-  ·  the Free Software Foundation,  either version three of the License or (at  ·
-  ·  your option) any later version.                                            ·
-  ·                                                                             ·
-  ·  Qvitter is distributed  in hope that  it will be  useful but  WITHOUT ANY  ·
-  ·  WARRANTY;  without even the implied warranty of MERCHANTABILTY or FITNESS  ·
-  ·  FOR A PARTICULAR PURPOSE.  See the  GNU Affero General Public License for  ·
-  ·  more details.                                                              ·
-  ·                                                                             ·
-  ·  You should have received a copy of the  GNU Affero General Public License  ·
-  ·  along with Qvitter. If not, see <http://www.gnu.org/licenses/>.            ·
-  ·                                                                             ·
-  ·  Contact h@nnesmannerhe.im if you have any questions.                       ·
-  ·                                                                             · 
-  · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · */
+/*· · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
+  ·                                                                               ·
+  ·                                                                               ·
+  ·                             Q V I T T E R                                     ·
+  ·                                                                               ·
+  ·                                                                               ·  
+  ·                                 <o)                                           ·
+  ·                                  /_////                                       ·
+  ·                                 (____/                                        ·
+  ·                                          (o<                                  ·
+  ·                                   o> \\\\_\                                   ·
+  ·                                 \\)   \____)                                  ·  
+  ·                                                                               ·
+  ·                                                                               ·  
+  ·     @licstart  The following is the entire license notice for the             ·
+  ·     JavaScript code in this page.                                             ·
+  ·                                                                               ·
+  ·     Copyright (C) 2015  Hannes Mannerheim and other contributors              ·
+  ·                                                                               ·    
+  ·                                                                               ·
+  ·     This program is free software: you can redistribute it and/or modify      ·
+  ·     it under the terms of the GNU Affero General Public License as            ·
+  ·     published by the Free Software Foundation, either version 3 of the        ·
+  ·     License, or (at your option) any later version.                           ·
+  ·                                                                               ·
+  ·     This program is distributed in the hope that it will be useful,           ·
+  ·     but WITHOUT ANY WARRANTY; without even the implied warranty of            ·
+  ·     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             ·
+  ·     GNU Affero General Public License for more details.                       ·
+  ·                                                                               ·
+  ·     You should have received a copy of the GNU Affero General Public License  ·
+  ·     along with this program.  If not, see <http://www.gnu.org/licenses/>.     ·
+  ·                                                                               ·
+  ·     @licend  The above is the entire license notice                           · 
+  ·     for the JavaScript code in this page.                                     · 
+  ·                                                                               · 
+  · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · */
   
 // object to keep old states of streams in, to speed up stream change  
 window.oldStreams = new Object();
@@ -58,15 +62,49 @@ window.onpopstate = function(event) {
 	
 /* · 
    · 
+   ·   welcome text expand and collapse
+   · 
+   · · · · · · · · · · · · · */ 
+$('body').on('click','.show-full-welcome-text, .front-welcome-text:not(.expanded) sup',function(){
+	$('.front-welcome-text').toggleClass('expanded');
+	if($('.front-welcome-text').hasClass('expanded')) {
+		var welcomeTextInnerObjectsHeightSum = $('.front-welcome-text > p').outerHeight() + $('.front-welcome-text > h1').outerHeight() + 50;
+		$('.front-welcome-text').css('height', welcomeTextInnerObjectsHeightSum + 'px')		
+		}
+	else {
+		$('.front-welcome-text').css('height', '180px');
+		$('.front-welcome-text').css('overflow', 'hidden');
+		var scrollTo = $(window).scrollTop() - ($('.front-welcome-text').outerHeight()-200);
+		if(scrollTo < 0) { scrollTo = 0;}
+		$('html, body').animate({ scrollTop: scrollTo}, 300, 'linear');		
+		}
+	});
+$('body').on('click','.welcome-text-register-link',function(){	
+	var scrollTo = $('#user-container').offset().top;
+	$('html, body').animate({ scrollTop: scrollTo}, 300, 'linear');		
+	});
+	
+
+
+/* · 
+   · 
    ·   fix login and register box to top when they reach top 
    · 
    · · · · · · · · · · · · · */ 
 	
 $(window).scroll(function(e){ 
-	if ($(this).scrollTop() > ($('#feed').offset().top-50) && $('#login-content').css('position') != 'fixed'){ 
-		$('#login-content, .front-signup').not('#popup-signup').css({'position': 'fixed', 'top': '50px'}); 
+
+	if($('#page-container > .profile-card').length > 0) {
+		var feedOrProfileCardOffsetTop = $('#page-container > .profile-card').offset().top;
 		}
-	else if ($(this).scrollTop() < ($('#feed').offset().top-50) && $('#login-content').css('position') != 'absolute'){ 
+	else {
+		var feedOrProfileCardOffsetTop = $('#feed').offset().top;
+		}
+		
+	if ($(this).scrollTop() > (feedOrProfileCardOffsetTop-55) && $('#login-content').css('position') != 'fixed'){ 
+		$('#login-content, .front-signup').not('#popup-signup').css({'position': 'fixed', 'top': '55px'}); 
+		}
+	else if ($(this).scrollTop() < (feedOrProfileCardOffsetTop-55) && $('#login-content').css('position') != 'absolute'){ 
 		$('#login-content, .front-signup').not('#popup-signup').css({'position': 'absolute', 'top': 'auto'}); 
 		}		
  	});	
@@ -331,16 +369,30 @@ function proceedToSetLanguageAndLogin(data){
 
 	window.siteTitle = $('head title').html(); // remember this for later use
 
+
 	// replace placeholders in translation
 	$.each(window.sL,function(k,v){
 		window.sL[k] = v.replace(/{site-title}/g,window.siteTitle);
 		});
 
-	// set some static string
-	$('.front-welcome-text h1').html(window.sL.welcomeHeading);
-	if (window.enableWelcomeText) {
-		$('.front-welcome-text p').html(window.sL.welcomeText);
-	}
+
+	// set some static strings
+	if(window.customWelcomeText !== false && typeof window.customWelcomeText[window.selectedLanguage] != 'undefined') {
+		$('.front-welcome-text').html(window.customWelcomeText[window.selectedLanguage]);
+		
+		// collapse long welcome texts and add expand button
+		if($('.front-welcome-text').outerHeight()>250) {
+			$('.front-welcome-text').css('height','240px');
+			$('.front-welcome-text').css('overflow', 'hidden');			
+			$('.front-welcome-text').append('<div class="show-full-welcome-text"></div>');
+			}
+		}
+	else {	
+		$('.front-welcome-text').html('<h1>' + window.sL.welcomeHeading +  '</h1>');		
+		if(window.enableWelcomeText) {
+			$('.front-welcome-text').append(window.sL.welcomeText);				
+			}
+		}
 	$('#nickname').attr('placeholder',window.sL.loginUsername);
 	$('#password').attr('placeholder',window.sL.loginPassword);
 	$('button#submit-login').html(window.sL.loginSignIn);
@@ -421,26 +473,6 @@ function doLogin(streamToSet) {
 	$('#submit-login').focus(); // prevents submit on enter to close alert-popup on wrong credentials
 	display_spinner();
 		
-		// set colors if the api supports it
-		if(typeof window.loggedIn.linkcolor != 'undefined' &&
-	       typeof window.loggedIn.backgroundcolor != 'undefined') {
-			window.loggedIn.linkcolor = window.loggedIn.linkcolor || '';	// no null value		
-			window.loggedIn.backgroundcolor = window.loggedIn.backgroundcolor || ''; // no null value
-			window.userLinkColor = window.loggedIn.linkcolor;
-			window.userBackgroundColor = window.loggedIn.backgroundcolor;			       
-			window.userBackgroundImage = window.loggedIn.background_image;			       			
-			if(window.userLinkColor.length != 6) {
-				window.userLinkColor = window.defaultLinkColor;
-				}	
-			if(window.userBackgroundColor.length != 6) {
-				window.userBackgroundColor = window.defaultBackgroundColor;
-				}		  		
-			if(window.userBackgroundImage.length < 1) {
-				window.userBackgroundImage = '';
-				}		  						    
-	        }
-		
-		
 		// add user data to DOM, show search form, remeber user id, show the feed
 		$('#user-container').css('z-index','1000');
 		$('#top-compose').removeClass('hidden');
@@ -473,8 +505,12 @@ function doLogin(streamToSet) {
 				$.each(data,function(k,v){
 					if(v[2] === false) { var avatar = window.defaultAvatarStreamSize; }
 					else { 	var avatar = v[2]; }
+					if(v[3]) {
+						// extract server base url
+						v[3] = v[3].substring(v[3].indexOf('://')+3,v[3].lastIndexOf(v[1])-1);
+						}					
 					v[0] = v[0] || v[1]; // if name is null we go with username there too
-					window.following[i] = { 'id': k,'name': v[0], 'username': v[1],'avatar': avatar };
+					window.following[i] = { 'id': k,'name': v[0], 'username': v[1],'avatar': avatar, 'url':v[3] };
 					i++;
 					});
 				}
@@ -573,11 +609,7 @@ $('#classic-link').click(function(){
    · · · · · · · · · · · · · */ 
 
 function logoutWithoutReload(doShake) {
-
-	if(window.currentStream == 'statuses/public_timeline.json') {
-		$('body').css('background-image', 'url(' + window.fullUrlToThisQvitterApp + window.siteBackground +')');
-		}
-											
+					
 	$('input#nickname').focus();	
 	$('.front-signup').animate({opacity:'1'},200);
 	if(doShake) {
@@ -591,7 +623,7 @@ function logoutWithoutReload(doShake) {
 				$('input#password').animate({backgroundColor:'#fff'},1000);					
 				});
 			}
-		$('.front-welcome-text').fadeIn(3000);						
+		$('.front-welcome-text').show();						
 		});
 	$('#page-container').animate({opacity:'1'},200);	
 	
@@ -1013,13 +1045,19 @@ $('body').on('click','a', function(e) {
 					// local profile id and follow class
 					var followLocalIdHtml = '';
 					var followingClass = '';					
-					if(typeof data.local != 'undefined') {
+					if(typeof data.local != 'undefined' && data.local !== null) {
 						followLocalIdHtml = ' data-follow-user-id="' + data.local.id + '"';
 
 						if(data.local.following) {
 							followingClass = 'following';
 							}
 						}
+						
+					// follows me?
+					var follows_you = '';
+					if(data.local.follows_you === true  && window.myUserID != data.local.id) {
+						var follows_you = '<span class="follows-you">' + window.sL.followsYou + '</span>';			
+						}						
 										
 					// empty strings and zeros instead of null
 					data = cleanUpUserObject(data.external);
@@ -1042,7 +1080,7 @@ $('body').on('click','a', function(e) {
 						}
 					else {
 						var cover_photo = data.profile_image_url_original;						
-						}		
+						}
 
 					// is webpage empty?
 					var emptyWebpage = '';
@@ -1062,7 +1100,7 @@ $('body').on('click','a', function(e) {
 						var noticeHtml = buildQueetHtml(data.status);						
 						}
 
-					var profileCard = '<div class="profile-card"><div class="profile-header-inner" style="background-image:url(\'' + cover_photo + '\')"><div class="profile-header-inner-overlay"></div><a class="profile-picture"><img src="' + data.profile_image_url_profile_size + '" /></a><div class="profile-card-inner"><h1 class="fullname">' + data.name + '<span></span></h1><h2 class="username"><span class="screen-name"><a target="_blank" href="' + data.statusnet_profile_url + '">' + screenNameWithServer + '</a></span><span class="follow-status"></span></h2><div class="bio-container"><p>' + data.description + '</p></div><p class="location-and-url"><span class="location">' + data.location + '</span><span class="url' + emptyWebpage + '"><span class="divider"> · </span><a target="_blank" href="' + data.url + '">' + data.url.replace('http://','').replace('https://','') + '</a></span></p></div></div><div class="profile-banner-footer"><ul class="stats"><li><a target="_blank" href="' + data.statusnet_profile_url + '">' + window.sL.notices + '<strong>' + data.statuses_count + '</strong></a></li><li><a target="_blank" href="' + data.statusnet_profile_url + '/subscriptions">' + window.sL.following + '<strong>' + data.friends_count + '</strong></a></li><li><a target="_blank" href="' + data.statusnet_profile_url + '/subscribers">' + window.sL.followers + '<strong>' + data.followers_count + '</strong></a></li></ul>' + followButton + '<div class="clearfix"></div></div></div><div class="clearfix"></div>';		
+					var profileCard = '<div class="profile-card"><div class="profile-header-inner" style="background-image:url(\'' + cover_photo + '\')"><div class="profile-header-inner-overlay"></div><a class="profile-picture"><img src="' + data.profile_image_url_profile_size + '" /></a><div class="profile-card-inner"><h1 class="fullname">' + data.name + '<span></span></h1><h2 class="username"><span class="screen-name"><a target="_blank" href="' + data.statusnet_profile_url + '">' + screenNameWithServer + '</a>' + follows_you + '</span><span class="follow-status"></span></h2><div class="bio-container"><p>' + data.description + '</p></div><p class="location-and-url"><span class="location">' + data.location + '</span><span class="url' + emptyWebpage + '"><span class="divider"> · </span><a target="_blank" href="' + data.url + '">' + data.url.replace('http://','').replace('https://','') + '</a></span></p></div></div><div class="profile-banner-footer"><ul class="stats"><li><a target="_blank" href="' + data.statusnet_profile_url + '">' + window.sL.notices + '<strong>' + data.statuses_count + '</strong></a></li><li><a target="_blank" href="' + data.statusnet_profile_url + '/subscriptions">' + window.sL.following + '<strong>' + data.friends_count + '</strong></a></li><li><a target="_blank" href="' + data.statusnet_profile_url + '/subscribers">' + window.sL.followers + '<strong>' + data.followers_count + '</strong></a></li></ul>' + followButton + '<div class="clearfix"></div></div></div><div class="clearfix"></div>';		
 					
 					popUpAction('popup-external-profile', screenNameWithServer,profileCard + noticeHtml,'<a class="go-to-external-profile" href="' + data.statusnet_profile_url + '">' + window.sL.goToExternalProfile + '</a>');
 					
@@ -1393,13 +1431,14 @@ $('body').on('click','.queet',function (event) {
 	
 /* · 
    · 
-   ·   Collapse all open conversations and ellipsis menus on esc or when clicking the margin  
+   ·   Collapse all open conversations, ellipsis menus and the welcome text on esc or when clicking the margin  
    ·   
    · · · · · · · · · · · · · */ 
 
 $('body').click(function(event){	
 	if($(event.target).is('body')) {
 		$('.action-ellipsis-container').children('.dropdown-menu').remove();
+		$('.front-welcome-text.expanded > .show-full-welcome-text').trigger('click');
 		$.each($('.stream-item.expanded'),function(){
 			expand_queet($(this), false);
 			});
@@ -1409,6 +1448,7 @@ $('body').click(function(event){
 $(document).keyup(function(e){
 	if(e.keyCode==27) { // esc
 		$('.action-ellipsis-container').children('.dropdown-menu').remove();
+		$('.front-welcome-text.expanded > .show-full-welcome-text').trigger('click');		
 		$.each($('.stream-item.expanded'),function(){
 			expand_queet($(this), false);
 			});
@@ -1952,7 +1992,7 @@ $('body').on('mouseup', 'div.syntax-two', function(e){
 	});
 
 // strip html from paste
-function stripHtmlFromPaste(e) {
+function stripHtmlFromPaste(e) {
 	e.preventDefault();
 	var text = replaceHtmlSpecialChars(e.clipboardData.getData("text/plain"));
 	text = text.replace(/\n/g,'<br>').replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;'); // keep line-breaks and tabs
@@ -2113,13 +2153,35 @@ $('body').on('keyup', 'div.queet-box-syntax', function(e) {
 				var term = match[0].substring(match[0].lastIndexOf('@')+1, match[0].length).toLowerCase();
 				window.lastMention.mentionPos = mentionPos;
 				window.lastMention.cursorPos = cursorPos;				
+
+				
+				// see if anyone we're following matches 
+				var suggestionsToShow = [];
+				var suggestionsUsernameCount = {};				
 				$.each(window.following,function(){
 					var userregex = new RegExp(term);
 					if(this.username.toLowerCase().match(userregex) || this.name.toLowerCase().match(userregex)) {
-						queetBox.siblings('.mentions-suggestions').append('<div><img height="24" width="24" src="' + this.avatar + '" /><strong>' + this.name + '</strong> @<span>' + this.username + '</span></div>')
+						suggestionsToShow.push({avatar:this.avatar, name:this.name, username:this.username,url:this.url});
+
+						// count the usernames to see if we need to show the server for any of them
+						if(typeof suggestionsUsernameCount[this.username] != 'undefined') {
+							suggestionsUsernameCount[this.username] = suggestionsUsernameCount[this.username] + 1;
+							}
+						else {
+							suggestionsUsernameCount[this.username] = 1;
+							}
 						}
 					});				
-
+				
+				// show matches
+				$.each(suggestionsToShow,function(){
+					var serverHtml = '';
+					if(suggestionsUsernameCount[this.username]>1) {
+						serverHtml = '@' + this.url;
+						}
+					queetBox.siblings('.mentions-suggestions').append('<div title="@' + this.username + serverHtml + '"><img height="24" width="24" src="' + this.avatar + '" /><strong>' + this.name + '</strong> @<span>' + this.username + serverHtml + '</span></div>')				
+					});
+				
 				}
 			else {
 				queetBox.siblings('.mentions-suggestions').empty();
@@ -2249,11 +2311,11 @@ $('body').on('click','.edit-profile-button',function(){
 							<div class="profile-banner-footer">\
 							   <div class="color-selection">\
 							      <label for="link-color-selection">' + window.sL.linkColor + '</label>\
-							      <input id="link-color-selection" type="text" value="#' + window.userLinkColor + '" />\
+							      <input id="link-color-selection" type="text" value="#' + window.loggedIn.linkcolor + '" />\
 							   </div>\
 							   <div class="color-selection">\
 							      <label for="link-color-selection">' + window.sL.backgroundColor + '</label>\
-							      <input id="background-color-selection" type="text" value="#' + window.userBackgroundColor + '" />\
+							      <input id="background-color-selection" type="text" value="#' + window.loggedIn.backgroundcolor + '" />\
 							   </div>\
 							   <div class="user-actions">\
 							       <button type="button" class="abort-edit-profile-button"><span class="button-text edit-profile-text">' + window.sL.cancelVerb + '</span>\
@@ -2268,14 +2330,16 @@ $('body').on('click','.edit-profile-button',function(){
 				// save colors on change
 				$('#link-color-selection').minicolors({
 					change: function(hex) {
-						changeLinkColor(hex);
+						changeDesign({linkcolor:hex});
 						postNewLinkColor(hex.substring(1));
+						window.loggedIn.linkcolor = hex.substring(1);
 						}
 					});
 				$('#background-color-selection').minicolors({
 					change: function(hex) {
-						$('body').css('background-color',hex);
+						changeDesign({backgroundcolor:hex});
 						postNewBackgroundColor(hex.substring(1));
+						window.loggedIn.backgroundcolor = hex.substring(1);
 						}
 					});
 				// also on keyup in input (minicolors 'change' event does not do this, apparently)
@@ -2450,8 +2514,8 @@ $('body').on('click','.crop-and-save-button',function(){
 						$('.crop-and-save-button').removeAttr('disabled');		
 						$('.crop-and-save-button').removeClass('disabled');
 						cleanUpAfterCropping();
-						$('body').css('background-image','url(\'' + data.url + '\')');
-						window.userBackgroundImage = data.url;
+						changeDesign({backgroundimage:data.url});
+						window.loggedIn.background_image = data.url;
 						}
 					 else {
 						alert('Try again! ' + data.error);
