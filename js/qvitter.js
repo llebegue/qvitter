@@ -935,6 +935,11 @@ $('body').on('click','a', function(e) {
 	if(!!$(this).attr('donthijack') || $(this).attr('donthijack') == '') {
 		return;		
 		}
+
+	// if we're clicking something in a profile card popup, close it!
+	if($(this).closest('#popup-local-profile, #popup-external-profile').length>0) {
+		$('.modal-container').remove();		
+		}
 		
 	// all links opens in new tab
 	$(this).attr('target','_blank'); 
@@ -969,8 +974,18 @@ $('body').on('click','a', function(e) {
 			setNewCurrentStream('favorites.json',function(){},true);				
 			}			
 		// profiles
-		else if ((/^[a-zA-Z0-9]+$/.test($(this).attr('href').replace('http://','').replace('https://','').replace(window.siteRootDomain + '/','')))) {
-			var linkNickname = $(this).attr('href').replace('http://','').replace('https://','').replace(window.siteRootDomain + '/','');
+		else if ((/^[a-zA-Z0-9]+$/.test($(this).attr('href').replace('http://','').replace('https://','').replace(window.siteRootDomain + '/','')))
+		|| (/^[0-9]+$/.test($(this).attr('href').replace('http://','').replace('https://','').replace(window.siteRootDomain + '/user/','')))) {
+			
+			if($(this).attr('href').indexOf('/user/') > -1) {
+				var linkNickname = $(this).text().toLowerCase();
+				if(linkNickname.substring(0,1) == '@') {
+					linkNickname = linkNickname.substring(1);
+					}
+				}
+			else {
+				var linkNickname = $(this).attr('href').replace('http://','').replace('https://','').replace(window.siteRootDomain + '/','');				
+				}
 			
 			// don't hijack /groups-url
 			if(linkNickname == 'groups') {
@@ -978,16 +993,54 @@ $('body').on('click','a', function(e) {
 				}
 			
 			e.preventDefault();
-			if($(this).parent().attr('id') == 'user-profile-link') { // logged in user
+
+			// logged in user
+			if($(this).parent().attr('id') == 'user-profile-link'
+			|| linkNickname == window.loggedIn.screen_name) {
 				setNewCurrentStream('statuses/user_timeline.json?screen_name=' + window.loggedIn.screen_name,function(){},true);	
 				}
-			else { // any user
-				setNewCurrentStream('statuses/user_timeline.json?screen_name=' + linkNickname,function(){},true);								
+			// when in local profile popups
+			else if($(this).closest('#popup-local-profile').length>0) {
+				setNewCurrentStream('statuses/user_timeline.json?screen_name=' + linkNickname,function(){},true);												
+				}
+			// any local user, not in popups –> open popup
+			else { 
+
+				$(this).addClass('local-profile-clicked');
+			
+				popUpAction('popup-local-profile', '','<div id="popup-local-profile-spinner" style="height:300px;"></div>',false);			
+				display_spinner('#popup-local-profile-spinner');
+			
+				// try getting from cache, to display immediately
+				if($(this).hasClass('account-group')) {
+					var localNickname = $(this).children('.screen-name').text().toLowerCase();
+					}
+				else {
+					var localNickname = $(this).text().toLowerCase();
+					}
+				if(localNickname.substring(0,1) == '@') {
+					localNickname = localNickname.substring(1);
+					}
+				var cachedUserArray = userArrayCacheGetByProfileUrlAndNickname($(this).attr('href'), localNickname);
+
+				if(cachedUserArray && cachedUserArray.local) {
+					openLocalProfileInPopup(cachedUserArray.local);
+					remove_spinner();			
+					$('.local-profile-clicked').removeClass('local-profile-clicked');		
+					}
+			
+				// but always query the server also
+				getFromAPI('users/show.json?id=' + localNickname,function(data){
+					if(data) {
+						// update the popup if it's still open
+						if($('#popup-local-profile').length>0) {
+							openLocalProfileInPopup(data);					
+							remove_spinner();	
+							$('.local-profile-clicked').removeClass('local-profile-clicked');												
+							}
+						}				
+					});	
 				}			
-			}
-		else if((/^[0-9]+$/.test($(this).attr('href').replace('http://','').replace('https://','').replace(window.siteRootDomain + '/user/','')))) {
-			e.preventDefault();
-			setNewCurrentStream('statuses/user_timeline.json?screen_name=' + $(this).text().toLowerCase(),function(){},true);	
 			}
 		// tags
 		else if ($(this).attr('href').indexOf(window.siteRootDomain + '/tag/')>-1) {
@@ -1036,81 +1089,46 @@ $('body').on('click','a', function(e) {
 		         || ($(this).closest('.stream-item').hasClass('activity') && $(this).attr('href').indexOf('/group/')==-1)) // or if it's a activity notice but not a group link
 		         && typeof window.loggedIn.screen_name != 'undefined') { // if logged in
 			e.preventDefault();
-			display_spinner();
 			$(this).addClass('external-profile-clicked');
+			
+			popUpAction('popup-external-profile', '','<div id="popup-external-profile-spinner" style="height:300px;"></div>',false);			
+			display_spinner('#popup-external-profile-spinner');
+			
+			// try getting from cache, to display immediately
+			if($(this).hasClass('account-group')) {
+				var externalNickname = $(this).children('.screen-name').text();
+				}
+			else {
+				var externalNickname = $(this).text();
+				}
+			if(externalNickname.substring(0,1) == '@') {
+				externalNickname = externalNickname.substring(1);
+				}
+			var cachedUserArray = userArrayCacheGetByProfileUrlAndNickname($(this).attr('href'), externalNickname);
+
+			if(cachedUserArray && cachedUserArray.external) {
+				openExternalProfileInPopup(cachedUserArray);
+				remove_spinner();			
+				$('.external-profile-clicked').removeClass('external-profile-clicked');		
+				}
+			
+			// but always query the server also
 			getFromAPI('qvitter/external_user_show.json?profileurl=' + encodeURIComponent($(this).attr('href')),function(data){
 
 				if(data && data.external !== null) {
 					
-					// local profile id and follow class
-					var followLocalIdHtml = '';
-					var followingClass = '';					
-					if(typeof data.local != 'undefined' && data.local !== null) {
-						followLocalIdHtml = ' data-follow-user-id="' + data.local.id + '"';
-
-						if(data.local.following) {
-							followingClass = 'following';
-							}
+					// update the popup if it's still open
+					if($('#popup-external-profile').length>0) {					
+						openExternalProfileInPopup(data);					
+						remove_spinner();	
 						}
 						
-					// follows me?
-					var follows_you = '';
-					if(data.local.follows_you === true  && window.myUserID != data.local.id) {
-						var follows_you = '<span class="follows-you">' + window.sL.followsYou + '</span>';			
-						}						
-										
-					// empty strings and zeros instead of null
-					data = cleanUpUserObject(data.external);
-						
-					// old statusnet-versions might not have full avatar urls in their api response
-					if(typeof data.profile_image_url_original == 'undefined'
-						   || data.profile_image_url_original === null
-						   || data.profile_image_url_original.length == 0) {
-						data.profile_image_url_original = data.profile_image_url;													
-						}
-					if(typeof data.profile_image_url_profile_size == 'undefined'
-						   || data.profile_image_url_profile_size === null
-						   || data.profile_image_url_profile_size.length == 0) {
-						data.profile_image_url_profile_size = data.profile_image_url;													
-						}						
-						
-					// we might have a cover photo
-					if(typeof data.cover_photo != 'undefined' && data.cover_photo !== false) {
-						var cover_photo = data.cover_photo;
-						}
-					else {
-						var cover_photo = data.profile_image_url_original;						
-						}
-
-					// is webpage empty?
-					var emptyWebpage = '';
-					if(data.url.length<1) {
-						emptyWebpage = ' empty';				
-						}						
-						
-					var serverUrl = data.statusnet_profile_url.replace('/' + data.screen_name,'');
-					var userApiUrl = serverUrl + '/api/statuses/user_timeline.json?screen_name=' + data.screen_name;
-					var screenNameWithServer = '@' + data.screen_name + '@' + serverUrl.replace('http://','').replace('https://','');						
-					var followButton = '<div class="user-actions"><button' + followLocalIdHtml + ' data-follow-user="' + data.statusnet_profile_url + '" type="button" class="qvitter-follow-button ' + followingClass + '"><span class="button-text follow-text"><i class="follow"></i>' + window.sL.userFollow + '</span><span class="button-text following-text">' + window.sL.userFollowing + '</span><span class="button-text unfollow-text">' + window.sL.userUnfollow + '</span></button></div>';						
-					
-					// preview latest notice
-					var noticeHtml = '';
-					if(typeof data.status != 'undefined') {
-						data.status.user = data;
-						var noticeHtml = buildQueetHtml(data.status);						
-						}
-
-					var profileCard = '<div class="profile-card"><div class="profile-header-inner" style="background-image:url(\'' + cover_photo + '\')"><div class="profile-header-inner-overlay"></div><a class="profile-picture"><img src="' + data.profile_image_url_profile_size + '" /></a><div class="profile-card-inner"><h1 class="fullname">' + data.name + '<span></span></h1><h2 class="username"><span class="screen-name"><a target="_blank" href="' + data.statusnet_profile_url + '">' + screenNameWithServer + '</a>' + follows_you + '</span><span class="follow-status"></span></h2><div class="bio-container"><p>' + data.description + '</p></div><p class="location-and-url"><span class="location">' + data.location + '</span><span class="url' + emptyWebpage + '"><span class="divider"> · </span><a target="_blank" href="' + data.url + '">' + data.url.replace('http://','').replace('https://','') + '</a></span></p></div></div><div class="profile-banner-footer"><ul class="stats"><li><a target="_blank" href="' + data.statusnet_profile_url + '">' + window.sL.notices + '<strong>' + data.statuses_count + '</strong></a></li><li><a target="_blank" href="' + data.statusnet_profile_url + '/subscriptions">' + window.sL.following + '<strong>' + data.friends_count + '</strong></a></li><li><a target="_blank" href="' + data.statusnet_profile_url + '/subscribers">' + window.sL.followers + '<strong>' + data.followers_count + '</strong></a></li></ul>' + followButton + '<div class="clearfix"></div></div></div><div class="clearfix"></div>';		
-					
-					popUpAction('popup-external-profile', screenNameWithServer,profileCard + noticeHtml,'<a class="go-to-external-profile" href="' + data.statusnet_profile_url + '">' + window.sL.goToExternalProfile + '</a>');
-					
-					remove_spinner();	
-					$('a').removeClass('external-profile-clicked');					
+					$('.external-profile-clicked').removeClass('external-profile-clicked');						
 					}
-				// if external lookup failed, trigger click again. 
+				// if external lookup failed, and we don't have a cached profile card, trigger click again. 
 				// it will not be hijacked since we don't remove the external-profile-clicked class here 
-				else {
-					remove_spinner();	
+				else if($('#popup-external-profile-spinner').length > 0){
+					$('.modal-container').remove();
 					$('.external-profile-clicked')[0].click();
 					$('.external-profile-clicked').removeClass('external-profile-clicked');
 					}
