@@ -358,7 +358,9 @@ function openExternalProfileInPopup(data) {
 	var noticeHtml = '';
 	if(typeof data.status != 'undefined') {
 		data.status.user = data;
-		var noticeHtml = buildQueetHtml(data.status);						
+		var $noticeHtmlObj = $('<div/>').append(buildQueetHtml(data.status));						
+		$noticeHtmlObj.find('.queet-thumbs').remove();
+		var noticeHtml = $noticeHtmlObj.outerHTML();			
 		}					
 	
 	popUpAction('popup-external-profile', data.screenNameWithServer,data.profileCard + noticeHtml,'<a class="go-to-external-profile" href="' + data.statusnet_profile_url + '">' + window.sL.goToExternalProfile + '</a>');
@@ -381,7 +383,9 @@ function openLocalProfileInPopup(data) {
 	var noticeHtml = '';
 	if(typeof data.status != 'undefined') {
 		data.status.user = data;
-		var noticeHtml = buildQueetHtml(data.status);						
+		var $noticeHtmlObj = $('<div/>').append(buildQueetHtml(data.status));						
+		$noticeHtmlObj.find('.queet-thumbs').remove();
+		var noticeHtml = $noticeHtmlObj.outerHTML();
 		}					
 	
 	popUpAction('popup-local-profile', '@' + data.screen_name, data.profileCardHtml + '<div class="clearfix"></div>' + noticeHtml,'<a class="go-to-local-profile" href="' + data.statusnet_profile_url + '">' + window.sL.goToExternalProfile + '</a>');
@@ -577,8 +581,7 @@ function setNewCurrentStream(stream,actionOnSuccess,setLocation) {
 		}			
 	else {
 		var h2FeedHeader = streamHeader;		
-		}									
-	
+		}				
 
 	// if we have a saved copy of this stream, show it immediately (but it is replaced when stream finishes to load later)
 	if(typeof window.oldStreams[window.currentStream] != "undefined") {
@@ -594,11 +597,7 @@ function setNewCurrentStream(stream,actionOnSuccess,setLocation) {
 
 		// also mark this stream as the current stream immediately, if a saved copy exists
 		addStreamToHistoryMenuAndMarkAsCurrent(streamHeader, defaultStreamName);	
-		
-		// and change design immediately
-		changeDesign(window.oldStreamsDesigns[theUserOrGroupThisStreamBelongsTo(window.currentStream)]);
 		}
-
 	// otherwise we fade out and wait for stream to load
 	else {
 		// fade out
@@ -608,6 +607,15 @@ function setNewCurrentStream(stream,actionOnSuccess,setLocation) {
 			$('#feed-header-inner h2').html(h2FeedHeader);
 			});	
 		}
+		
+	// change design immediately to either cached design or logged in user's
+	if(typeof window.oldStreamsDesigns[theUserOrGroupThisStreamBelongsTo(window.currentStream)] != 'undefined') {
+		changeDesign(window.oldStreamsDesigns[theUserOrGroupThisStreamBelongsTo(window.currentStream)]);
+		}
+	else {
+		changeDesign({backgroundimage:window.loggedIn.background_image, backgroundcolor:window.loggedIn.backgroundcolor, linkcolor:window.loggedIn.linkcolor});									
+		}
+		
 	
 	// for these streams we want a user array in the header to build a profile card 
 	var addUserArray = '';
@@ -626,9 +634,6 @@ function setNewCurrentStream(stream,actionOnSuccess,setLocation) {
 		if(queet_data) {
 			// while waiting for this data user might have changed stream, so only proceed if current stream still is this one
 			if(window.currentStream == stream) {
-				
-				// change design
-				changeDesign({backgroundimage:window.loggedIn.background_image, backgroundcolor:window.loggedIn.backgroundcolor, linkcolor:window.loggedIn.linkcolor});
 					
 				// show group profile card if this is a group stream
 				if(stream.substring(0,26) == 'statusnet/groups/timeline/'
@@ -996,6 +1001,17 @@ function expand_queet(q,doScrolling) {
 			// remove some things right away
 			q.find('.inline-reply-caret').remove();
 			
+			// "unplay" gif image on collapse if there's only one attachment (switch to thumb)
+			var gifToUnPlay = q.children('.queet').find('.queet-thumbs.thumb-num-1').children('.thumb-container.play-button').children('.attachment-thumb[data-mime-type="image/gif"]');
+			if(gifToUnPlay.length > 0) {
+				gifToUnPlay.attr('src',gifToUnPlay.attr('data-thumb-url'));
+				gifToUnPlay.parent('.thumb-container').css('background-image','url(\'' + gifToUnPlay.attr('data-thumb-url') + '\')');
+				}
+			
+			// show thumbs (if hidden) and remove any iframe video immediately
+			q.children('.queet').find('.queet-thumbs').removeClass('hide-thumbs');	
+			q.children('.queet').find('iframe').remove();
+			
 			q.addClass('collapsing');
 			if(q.hasClass('conversation')) {
 				q.removeClass('expanded');	 
@@ -1012,6 +1028,8 @@ function expand_queet(q,doScrolling) {
 				// give stream item a height
 				q.css('height',q.height() + 'px');
 				q.children('.queet').find('.expanded-content').css('height',q.find('.expanded-content').height() + 'px');							
+				q.children('.queet').find('.queet-thumbs.thumb-num-1').css('max-height',q.find('.queet-thumbs.thumb-num-1').height() + 'px');
+				q.children('.queet').find('.queet-thumbs.thumb-num-1 .thumb-container').css('max-height',q.find('.queet-thumbs.thumb-num-1').height() + 'px');				
 				
 				q.children('div').not('.queet').children('a').css('opacity','0.5');
 				q.children('div').not('.queet').children().children().css('opacity','0.5');
@@ -1024,40 +1042,41 @@ function expand_queet(q,doScrolling) {
 					q.children('.queet').css('-o-transition-duration',Math.round( collapseTime / 1000 * 10) / 10 + 's');
 					q.children('.queet').css('-webkit-transition-duration',Math.round( collapseTime * 1000 * 10) / 10 + 's');
 					q.children('.queet').css('transition-duration',Math.round( collapseTime / 1000 * 10) / 10 + 's');
+					q.children('.queet').find('.expanded-content, .queet-thumbs.thumb-num-1, .queet-thumbs.thumb-num-1 .thumb-container').css('-moz-transition-duration',Math.round( collapseTime / 1000 * 10) / 10 + 's');
+					q.children('.queet').find('.expanded-content, .queet-thumbs.thumb-num-1, .queet-thumbs.thumb-num-1 .thumb-container').css('-o-transition-duration',Math.round( collapseTime / 1000 * 10) / 10 + 's');
+					q.children('.queet').find('.expanded-content, .queet-thumbs.thumb-num-1, .queet-thumbs.thumb-num-1 .thumb-container').css('-webkit-transition-duration',Math.round( collapseTime * 1000 * 10) / 10 + 's');
+					q.children('.queet').find('.expanded-content, .queet-thumbs.thumb-num-1, .queet-thumbs.thumb-num-1 .thumb-container').css('transition-duration',Math.round( collapseTime / 1000 * 10) / 10 + 's');
 					q.css('-moz-transition-duration',Math.round( collapseTime / 1000 * 10) / 10 + 's');
 					q.css('-o-transition-duration',Math.round( collapseTime / 1000 * 10) / 10 + 's');
 					q.css('-webkit-transition-duration',Math.round( collapseTime * 1000 * 10) / 10 + 's');
 					q.css('transition-duration',Math.round( collapseTime / 1000 * 10) / 10 + 's');
-					q.find('.expanded-content').css('-moz-transition-duration',Math.round( collapseTime / 1000 * 10) / 10 + 's');
-					q.find('.expanded-content').css('-o-transition-duration',Math.round( collapseTime / 1000 * 10) / 10 + 's');
-					q.find('.expanded-content').css('-webkit-transition-duration',Math.round( collapseTime * 1000 * 10) / 10 + 's');
-					q.find('.expanded-content').css('transition-duration',Math.round( collapseTime / 1000 * 10) / 10 + 's');					
 
 					// set new heights and margins to animate to
-					var animateToHeight = q.children('.queet').outerHeight() - q.find('.inline-reply-queetbox').outerHeight() - q.children('.queet').find('.expanded-content').outerHeight() - 2;
+					var animateToHeight = q.children('.queet').outerHeight() - q.find('.inline-reply-queetbox').outerHeight() - q.children('.queet').find('.expanded-content').outerHeight() - Math.max(0,q.children('.queet').find('.queet-thumbs.thumb-num-1').outerHeight()-250) - 2;
 					if(animateToHeight < 73) { // no less than this
 						animateToHeight = 73;
 						}
 					q.css('height',animateToHeight + 'px');
 					q.children('.queet').css('margin-top', '-' + (q.children('.queet').offset().top - q.offset().top) + 'px');					
-					q.children('.queet').find('.expanded-content').css('height','0');					
-
+					q.children('.queet').find('.expanded-content').css('height','0');
+					q.children('.queet').find('.queet-thumbs.thumb-num-1, .queet-thumbs.thumb-num-1 .thumb-container').css('max-height','250px');
+					
+					if(doScrolling) {
+						setTimeout(function() {
+							backToMyScrollPos(q,qid,500,function(){
+								cleanUpAfterCollapseQueet(q);
+								});
+							}, collapseTime);
+						}
+					else {
+						setTimeout(function() {
+							cleanUpAfterCollapseQueet(q);		
+							}, collapseTime);					
+						}
+					
  					}, 50);		
  					
-				if(doScrolling) {
-					setTimeout(function() {
-						backToMyScrollPos(q,qid,500,function(){
-							setTimeout(function() {
-								cleanUpAfterCollapseQueet(q);
-								}, 250);													
-							});
-						}, collapseTime);
-					}
-				else {
-					setTimeout(function() {
-						cleanUpAfterCollapseQueet(q);		
-						}, collapseTime+250);					
-					}
+
    								
 				}    	    
 	    	}
@@ -1089,7 +1108,7 @@ function expand_queet(q,doScrolling) {
 						}
 					});				
 				}
-
+			
 			// add expanded container
 			var longdate = parseTwitterLongDate(q.find('.created-at').attr('data-created-at'));
 			var qurl = q.find('.created-at').find('a').attr('href');
@@ -1098,94 +1117,77 @@ function expand_queet(q,doScrolling) {
 			
 			// show expanded content
 			q.find('.stream-item-footer').before('<div class="expanded-content"><div class="queet-stats-container"></div><div class="client-and-actions"><span class="metadata">' + metadata + '</span></div></div>');					
-	
 			
-			// maybe show images or videos, look for them in both the text and in the thumbnail container
-			$.each(q.children('.queet').find('.queet-text, .attachments').find('a'), function() {
-
-				var attachment_mimetype = $(this).find('img').attr('data-mime-type');
-
-				if(typeof attachment_mimetype == 'undefined') {
-					attachment_mimetype = '';
+			// "play" gif image on expand if there's only one attachment (switch to full gif from thumb)
+			var gifToPlay = q.children('.queet').find('.queet-thumbs.thumb-num-1').children('.thumb-container.play-button').children('.attachment-thumb[data-mime-type="image/gif"]');
+			if(gifToPlay.length > 0) {
+				gifToPlay.attr('src',gifToPlay.attr('data-full-image-url'));
+				gifToPlay.parent('.thumb-container').css('background-image','url(\'' + gifToPlay.attr('data-full-image-url') + '\')');
 				}
 
-				var attachment_title = $(this).attr('title');
-				
-				// attachments in the .attachments container don't have a title, their full url is in the href
-				if(typeof attachment_title == 'undefined') {
-					attachment_title = $(this).attr('href');					
-					}
-				
-				// filename extension
-				var attachment_title_extension = attachment_title.substr((~-attachment_title.lastIndexOf(".") >>> 0) + 2);
-
-				// attachments in the content link to /attachment/etc url and not direct to image/video, link is in title
-				if(typeof attachment_title != 'undefined') {
-					// images
-					if($.inArray(attachment_mimetype, ['image/gif', 'image/jpeg', 'image/png', 'image/svg+xml']) >= 0
-					|| $.inArray(attachment_title_extension, ['jpeg', 'gif', 'jpg','png','svg']) >= 0) {
-						if(q.children('.queet').find('.expanded-content').children('.media').children('a[href="' + attachment_title + '"]').length < 1) { // not if already showed
-							
-							// local attachment with a thumbnail
-							if(typeof $(this).find('img').attr('data-big-thumbnail') != 'undefined') {
-								var attachment_src = $(this).find('img').attr('data-big-thumbnail');
-								}
-							
-							// external "deep linked" images 
-							else {
-								var attachment_src = attachment_title;
-								}
-							
-							// don't show thumbnails for gifs
-							if(attachment_mimetype == 'image/gif') {
-								var attachment_src = attachment_title;
-								}
-
-							if(q.children('.queet').find('.expanded-content').children('.media').length > 0) {
-								q.children('.queet').find('.media').last().after('<div class="media"><a href="' + attachment_title + '" target="_blank"><img src="' + attachment_src + '" /></a></div>');								
-								}
-							else {
-								q.children('.queet').find('.expanded-content').prepend('<div class="media"><a href="' + attachment_title + '" target="_blank"><img src="' + attachment_src + '" /></a></div>');								
-								}
-							}
+			// if there's only one thumb and it's a youtube video, show it inline
+			if(q.children('.queet').find('.queet-thumbs.thumb-num-1').children('.thumb-container.play-button.youtube').length == 1) {
+				var youtubeId = q.children('.queet').find('.queet-thumbs.thumb-num-1').children('.thumb-container.play-button.youtube').children('.attachment-thumb').attr('data-full-image-url').replace('http://www.youtube.com/watch?v=','').replace('https://www.youtube.com/watch?v=','').replace('http://youtu.be/','').replace('https://youtu.be/','').substr(0,11);
+				if(q.children('.queet').find('.expanded-content').children('.media').children('iframe[src="//www.youtube.com/embed/' + youtubeId + '"]').length < 1) { // not if already showed
+					// hide video thumbnail if it's the only one
+					if(q.children('.queet').find('.queet-thumbs').children('.thumb-container').length < 2) {
+						q.children('.queet').find('.queet-thumbs').addClass('hide-thumbs');
 						}
-					// videos
-					else if($.inArray(attachment_mimetype, ['video/mp4', 'video/ogg', 'video/quicktime', 'video/webm']) >= 0) {
-						if(q.children('.queet').find('.expanded-content').children('.media').children('video').children('source[href="' + attachment_title + '"]').length < 1) { // not if already showed
-
-							// local attachment with a thumbnail
-							if(typeof $(this).find('img').attr('data-big-thumbnail') != 'undefined') {
-								var attachment_poster = $(this).find('img').attr('data-big-thumbnail');
-								}
-
-							if(q.children('.queet').find('.expanded-content').children('.media').length > 0) {
-								q.children('.queet').find('.media').last().after('<div class="media"><video class="u-video" controls="controls" poster="' + attachment_poster + '"><source type="' + attachment_mimetype + '" src="' + attachment_title + '" /></video></div>');
-								}
-							else {
-								q.children('.queet').find('.expanded-content').prepend('<div class="media"><video class="u-video" controls="controls" poster="' + attachment_poster + '"><source type="' + attachment_mimetype + '" src="' + attachment_title + '" /></video></div>');								
-								}
-						}
-					}
-					else if(attachment_title.indexOf('youtube.com/watch?v=') > -1 || attachment_title.indexOf('://youtu.be/') > -1) {
-						var youtubeId = attachment_title.replace('http://www.youtube.com/watch?v=','').replace('https://www.youtube.com/watch?v=','').replace('http://youtu.be/','').replace('https://youtu.be/','').substr(0,11);
-						if(q.children('.queet').find('.expanded-content').children('.media').children('iframe[src="//www.youtube.com/embed/' + youtubeId + '"]').length < 1) { // not if already showed
-							q.children('.queet').find('.expanded-content').prepend('<div class="media"><iframe width="420" height="315" src="//www.youtube.com/embed/' + youtubeId + '" frameborder="0" allowfullscreen></iframe></div>');						
-							}
-						}
-					else {
-						// other plugins, e.g. gotabulo, can check for other attachment file formats to expand
-						window.currentlyExpanding = {
-							"attachment_title":attachment_title,
-							"attachment_mimetype":attachment_mimetype,
-							"attachment_title_extension":attachment_title_extension,
-							"streamItem":q,
-							"thisAttachmentLink":$(this)													
-							};
-						$(document).trigger('qvitterExpandOtherAttachments');
-						}
-					}
-				});
+					// show video
+					q.children('.queet').find('.expanded-content').prepend('<div class="media"><iframe width="510" height="315" src="//www.youtube.com/embed/' + youtubeId + '" frameborder="0" allowfullscreen></iframe></div>');						
+					}		
+				}
 			
+			// show certain attachments in expanded content
+			if(q.data('attachments') != 'undefined') {
+				$.each(q.data('attachments'), function() {
+				
+					var attachment_mimetype = this.mimetype;
+					var attachment_title = this.url;				
+								
+					// filename extension
+					var attachment_title_extension = attachment_title.substr((~-attachment_title.lastIndexOf(".") >>> 0) + 2);
+
+					// attachments in the content link to /attachment/etc url and not direct to image/video, link is in title
+					if(typeof attachment_title != 'undefined') {
+					
+						// hack to make remote webm-movies load
+						if(attachment_title_extension == 'webm') {
+							attachment_mimetype = 'video/webm';
+							}
+
+						// videos
+						if($.inArray(attachment_mimetype, ['video/mp4', 'video/ogg', 'video/quicktime', 'video/webm']) >=0) {
+							if(q.children('.queet').find('.expanded-content').children('.media').children('video').children('source[href="' + attachment_title + '"]').length < 1) { // not if already showed
+
+								// local attachment with a thumbnail
+								var attachment_poster = '';
+								if(typeof this.thumb_url != 'undefined') {
+									attachment_poster = ' poster="' + this.thumb_url + '"';
+									}
+
+								if(q.children('.queet').find('.expanded-content').children('.media').length > 0) {
+									q.children('.queet').find('.media').last().after('<div class="media"><video class="u-video" controls="controls"' + attachment_poster + '><source type="' + attachment_mimetype + '" src="' + attachment_title + '" /></video></div>');
+									}
+								else {
+									q.children('.queet').find('.expanded-content').prepend('<div class="media"><video class="u-video" controls="controls"' + attachment_poster + '><source type="' + attachment_mimetype + '" src="' + attachment_title + '" /></video></div>');								
+									}
+							}
+						}
+						else {
+							// other plugins, e.g. gotabulo, can check for other attachment file formats to expand
+							window.currentlyExpanding = {
+								"attachment_title":attachment_title,
+								"attachment_mimetype":attachment_mimetype,
+								"attachment_title_extension":attachment_title_extension,
+								"streamItem":q,
+								"thisAttachmentLink":$(this)													
+								};
+							$(document).trigger('qvitterExpandOtherAttachments');
+							}
+						}
+					});		
+				}
 
 			// get and show favs and repeats
 			getFavsAndRequeetsForQueet(q, qid);	
@@ -1201,7 +1203,7 @@ function expand_queet(q,doScrolling) {
 				
 				// show inline reply form if logged in
 				if(typeof window.loggedIn.screen_name != 'undefined') {			
-					q.find('#q-' + qid).append(replyFormHtml(q,qid));	
+					q.children('.queet').append(replyFormHtml(q,qid));	
 					}
 							
 				}			
@@ -1222,6 +1224,8 @@ function cleanUpAfterCollapseQueet(q) {
 	q.find('.show-full-conversation').remove();																					
 	q.removeAttr('style');			
 	q.children('.queet').removeAttr('style');
+	q.children('.queet').find('.queet-thumbs.thumb-num-1').removeAttr('style');	
+	q.children('.queet').find('.queet-thumbs.thumb-num-1 .thumb-container').css('max-height','');	
 	}
 
 
@@ -1269,9 +1273,10 @@ function replyFormHtml(q,qid) {
 	var more_reply_tos = '';
 	var more_reply_tos_text = '';	
 	$.each(q.children('.queet').find('.queet-text').find('.mention'),function(key,obj){
-		if($(obj).html() != user_screen_name && $(obj).html() != reply_to_screen_name && $(obj).html() != $('#user-screen-name').html()) {
-			more_reply_tos = more_reply_tos + '&nbsp;<a>@' + $(obj).html() + '</a>';
-			more_reply_tos_text = more_reply_tos_text + ' @' + $(obj).html();			
+		var thisMention = $(obj).html().replace('@','');
+		if(thisMention != user_screen_name && thisMention != reply_to_screen_name && thisMention != $('#user-screen-name').html()) {
+			more_reply_tos = more_reply_tos + '&nbsp;<a>@' + thisMention + '</a>';
+			more_reply_tos_text = more_reply_tos_text + ' @' + thisMention;			
 			}
 		});
 	
@@ -1292,28 +1297,37 @@ function replyFormHtml(q,qid) {
    ·   
    · · · · · · · · · · · · · */ 
 
-function popUpAction(popupId, heading, bodyHtml, footerHtml){
+function popUpAction(popupId, heading, bodyHtml, footerHtml, popUpWidth){
 	$('.modal-container').remove(); // remove any open popups
 	var allFooterHtml = '';
 	if(footerHtml) {
 		allFooterHtml = '<div class="modal-footer">' + footerHtml + '</div>';
 		}
 	$('body').prepend('<div id="' + popupId + '" class="modal-container"><div class="modal-draggable"><div class="modal-content"><button class="modal-close" type="button"><span class="icon"></span></button><div class="modal-header"><h3 class="modal-title">' + heading + '</h3></div><div class="modal-body">' + bodyHtml + '</div>' + allFooterHtml + '</div></div></div>');	
-	var this_modal_height = $('#' + popupId).children('.modal-draggable').height();
-	var this_modal_width = $('#' + popupId).children('.modal-draggable').width();
-	var popupPos = $('#' + popupId).children('.modal-draggable').offset().top - $(window).scrollTop();
+	var thisPopUp = $('#' + popupId).children('.modal-draggable');
+
+	if(typeof popUpWidth != 'undefined') {
+		thisPopUp.width(popUpWidth);
+		}
+	centerPopUp(thisPopUp);
+	}	
+function centerPopUp(thisPopUp) {
+	thisPopUp.css('margin-top','');
+	thisPopUp.css('margin-left','');	
+	var this_modal_height = thisPopUp.height();
+	var this_modal_width = thisPopUp.width();
+	var popupPos = thisPopUp.offset().top - $(window).scrollTop();
 	if((popupPos-(this_modal_height/2))<5) {
 		var marginTop = 5-popupPos;
 		}
 	else {
 		var marginTop = 0-this_modal_height/2;
 		}
-	$('#' + popupId).children('.modal-draggable').css('margin-top', marginTop + 'px');
-	$('#' + popupId).children('.modal-draggable').css('margin-left', '-' + (this_modal_width/2) + 'px');		
-	$('#' + popupId).children('.modal-draggable').draggable({ handle: ".modal-header" });
-	$('#' + popupId).children('.modal-header').disableSelection();
-	}	
-	
+	thisPopUp.css('margin-top', marginTop + 'px');
+	thisPopUp.css('margin-left', '-' + (this_modal_width/2) + 'px');		
+	thisPopUp.draggable({ handle: ".modal-header" });
+	thisPopUp.disableSelection();	
+	}
 	
 
 
@@ -1397,13 +1411,13 @@ function showConversation(q, qid, data) {
 											
 					if(obj.source == 'activity') {
 						var queetHtml = '<div id="conversation-stream-item-' + obj.id + '" class="stream-item conversation activity hidden-conversation" data-source="' + escape(obj.source) + '" data-quitter-id="' + obj.id + '"  data-quitter-id-in-stream="' + obj.id + '"><div class="queet" id="conversation-q-' + obj.id + '"><div class="queet-content"><div class="stream-item-header"><small class="created-at" data-created-at="' + obj.created_at + '"><a>' + queetTime + '</a></small></div><div class="queet-text">' + $.trim(obj.statusnet_html) + '</div></div></div></div>';
+
+						// detect rtl
+						queetHtml = detectRTL(queetHtml);
 						}
 					else {
 						var queetHtml = buildQueetHtml(obj, obj.id, 'conversation hidden-conversation', false, true);
 						}						
-					
-					// detect rtl
-					queetHtml = detectRTL(queetHtml);						
 					
 					if(q.hasClass('expanded')) { // add queet to conversation only if still expanded
 					
@@ -1932,9 +1946,10 @@ function buildQueetHtml(obj, idInStream, extraClassesThisRun, requeeted_by, isCo
 		
 	// image attachment thumbnails
 	var attachment_html = '';
+	var attachmentNum = 0;
 	if(typeof obj.attachments != "undefined") {
 		$.each(obj.attachments, function(){
-			if(this.id != null) {
+			if(this.id != null) { // if there's an id we assume this is a image or video
 				var bigThumbW = 1000;
 				var bigThumbH = 3000;
 				if(bigThumbW > window.siteMaxThumbnailSize) {
@@ -1944,24 +1959,52 @@ function buildQueetHtml(obj, idInStream, extraClassesThisRun, requeeted_by, isCo
 					bigThumbH = window.siteMaxThumbnailSize;
 					}
 				
-				// if thumb_url is set, we use that
-				if(typeof this.thumb_url != 'undefined') {
-					var thumb_url = this.thumb_url;
+				// very long landscape images should not have background-size:cover
+				var noCoverClass='';
+				if(this.width/this.height > 2) {
+					noCoverClass=' no-cover';
 					}
-				else {
-					var thumb_url = window.siteAttachmentURLBase + this.id + '/thumbnail?w=200&h=200';					
+					
+				// play button for videos and animated gifs
+				var playButtonClass = '';			
+				if(this.url.indexOf('://www.youtube.com') > -1
+				|| (typeof this.animated != 'undefined' && this.animated === true)) {
+					var playButtonClass = ' play-button';					
 					}
 				
-				attachment_html = attachment_html + '<a href="' + this.url + '"><img data-mime-type="' + this.mimetype + '" data-big-thumbnail="' + window.siteAttachmentURLBase + this.id + '/thumbnail?w=' + bigThumbW + '&h=' + bigThumbH + '" src="' + thumb_url + '"/></a>';
+				// youtube class
+				var youTubeClass = '';			
+				if(this.url.indexOf('://www.youtube.com') > -1) {
+					youTubeClass = ' youtube';
+					}
+
+								
+				// animated gifs always get default small non-animated thumbnail
+				if(this.animated === true && typeof this.thumb_url != 'undefined') {
+					var img_url = this.thumb_url;	
+					}
+				// if no dimensions are set, go with default thumb
+				else if(this.width === null && this.height === null && typeof this.thumb_url != 'undefined') {
+					var img_url = this.thumb_url;					
+					}
+				// large images get large thumbnail
+				else if(this.width > 1000) {
+					var img_url = window.siteAttachmentURLBase + this.id + '/thumbnail?w=' + bigThumbW + '&h=' + bigThumbH;
+					}
+				// no thumbnails for small images
+				else {
+					var img_url = this.url;
+					}
+				
+				attachment_html = attachment_html + '<a style="background-image:url(\'' + img_url + '\')" class="thumb-container' + noCoverClass + playButtonClass + youTubeClass + '" href="' + this.url + '"><img class="attachment-thumb" data-mime-type="' + this.mimetype + '" src="' + img_url + '"/ data-width="' + this.width + '" data-height="' + this.height + '" data-full-image-url="' + this.url + '" data-thumb-url="' + img_url + '"></a>';
+				attachmentNum++;
 				}
 			else if (this.mimetype == 'image/svg+xml') {
-				attachment_html = attachment_html + '<a href="' + this.url + '"><img data-mime-type="' + this.mimetype + '" src="' + this.url + '"/></a>';
+				attachment_html = attachment_html + '<a style="background-image:url(\'' + this.url + '\')" class="thumb-container" href="' + this.url + '"><img class="attachment-thumb" data-mime-type="' + this.mimetype + '" src="' + this.url + '"/></a>';
+				attachmentNum++;
 				}
 			});
 		}	
-	if(attachment_html.length>0) {
-		attachment_html = '<div class="attachments">' + attachment_html + '</div>';
-		}
 		
 	// requeets
 	var requeetHtml = '';
@@ -1982,6 +2025,7 @@ function buildQueetHtml(obj, idInStream, extraClassesThisRun, requeeted_by, isCo
 	var queetHtml = '<div \
 						id="' + idPrepend + 'stream-item-' + obj.id + '" \
 						class="stream-item ' + extraClassesThisRun + ' ' + requeetedClass + ' ' + favoritedClass + '" \
+						data-attachments=\'' + JSON.stringify(obj.attachments) + '\'\
 						data-source="' + escape(obj.source) + '" \
 						data-quitter-id="' + obj.id + '" \
 						data-conversation-id="' + obj.statusnet_conversation_id + '" \
@@ -1991,7 +2035,6 @@ function buildQueetHtml(obj, idInStream, extraClassesThisRun, requeeted_by, isCo
 						' + requeetedByMe + '>\
 							<div class="queet" id="' + idPrepend + 'q-' + obj.id + '">\
 								' + requeetHtml + '\
-								' + attachment_html + '\
 								' + ostatusHtml + '\
 								<div class="queet-content">\
 									<div class="stream-item-header">\
@@ -2006,6 +2049,7 @@ function buildQueetHtml(obj, idInStream, extraClassesThisRun, requeeted_by, isCo
 										</small>\
 									</div>\
 									<div class="queet-text">' + $.trim(obj.statusnet_html) + '</div>\
+									<div class="queet-thumbs thumb-num-' + attachmentNum + '">' + attachment_html + '</div>\
 									<div class="stream-item-footer">\
 										' + queetActions + '\
 									</div>\

@@ -1011,17 +1011,7 @@ $('body').on('click','a', function(e) {
 				popUpAction('popup-local-profile', '','<div id="popup-local-profile-spinner" style="height:300px;"></div>',false);			
 				display_spinner('#popup-local-profile-spinner');
 			
-				// try getting from cache, to display immediately
-				if($(this).hasClass('account-group')) {
-					var localNickname = $(this).children('.screen-name').text().toLowerCase();
-					}
-				else {
-					var localNickname = $(this).text().toLowerCase();
-					}
-				if(localNickname.substring(0,1) == '@') {
-					localNickname = localNickname.substring(1);
-					}
-				var cachedUserArray = userArrayCacheGetByProfileUrlAndNickname($(this).attr('href'), localNickname);
+				var cachedUserArray = userArrayCacheGetByProfileUrlAndNickname($(this).attr('href'), linkNickname);
 
 				if(cachedUserArray && cachedUserArray.local) {
 					openLocalProfileInPopup(cachedUserArray.local);
@@ -1030,7 +1020,7 @@ $('body').on('click','a', function(e) {
 					}
 			
 				// but always query the server also
-				getFromAPI('users/show.json?id=' + localNickname,function(data){
+				getFromAPI('users/show.json?id=' + linkNickname,function(data){
 					if(data) {
 						// update the popup if it's still open
 						if($('#popup-local-profile').length>0) {
@@ -1060,6 +1050,9 @@ $('body').on('click','a', function(e) {
 				}
 			else {
 				var groupName = $(this).text().toLowerCase();
+				if(groupName.substring(0,1) == '!') {
+					groupName = groupName.substring(1);
+					}
 				}
 			setNewCurrentStream('statusnet/groups/timeline/' + groupName + '.json',function(){},true);				
 			}	
@@ -1411,7 +1404,7 @@ $('body').on('click','#new-queets-bar',function(){
    · 
    ·   Expand and de-expand queets when clicking anywhere but on a few element types
    ·   
-   · · · · · · · · · · · · · */ 
+   · · · · · · · · · · · · · */
 
 $('body').on('click','.queet',function (event) {
 	if(!$(event.target).is('a')
@@ -1420,11 +1413,11 @@ $('body').on('click','.queet',function (event) {
 		&& !$(event.target).is('.cm-tag')
 		&& !$(event.target).is('.cm-group')
 		&& !$(event.target).is('.cm-url')						
-		&& !$(event.target).is('pre')		
+		&& !$(event.target).is('pre')
+		&& !$(event.target).is('img')		
 		&& !$(event.target).is('.name')
 		&& !$(event.target).is('.queet-box')
-		&& !$(event.target).is('.syntax-two')			
-		&& !$(event.target).is('img')				
+		&& !$(event.target).is('.syntax-two')						
 		&& !$(event.target).is('button')				
 		&& !$(event.target).is('.show-full-conversation')						
 		&& !$(event.target).is('span.mention')
@@ -1446,6 +1439,228 @@ $('body').on('click','.queet',function (event) {
 		}	
 	});
 	
+
+/* · 
+   · 
+   ·   Image popups
+   ·   
+   · · · · · · · · · · · · · */	
+
+$('body').on('click','.stream-item .queet img.attachment-thumb',function (event) {
+	event.preventDefault();
+	
+	// don't do anything if we are in the middle of collapsing
+	if($(this).closest('.stream-item').hasClass('collapsing')) {
+		// no action
+		}
+	// if the stream item isn't expanded, expand that
+	else if(!$(this).closest('.stream-item').hasClass('expanded')) {
+		expand_queet($(this).closest('.stream-item'));
+		}
+	// otherwise we open the popup
+	else {
+		var thisAttachmentThumbSrc = $(this).attr('src'); 
+		var parentStreamItem = $(this).closest('.stream-item');
+		var $parentStreamItemClone = $('<div/>').append(parentStreamItem.outerHTML());
+	
+		if(!parentStreamItem.hasClass('conversation')) {
+			$parentStreamItemClone.find('.stream-item.conversation').remove();			
+			}
+	
+		var $queetThumbsClone = $('<div/>').append($parentStreamItemClone.find('.queet-thumbs').outerHTML());	
+	
+		$parentStreamItemClone.find('.queet-thumbs, .expanded-content, .inline-reply-queetbox, .stream-item-footer').remove();
+		var footerHTML = $parentStreamItemClone.find('.queet').outerHTML();
+		$thumbToDisplay = $queetThumbsClone.find('img.attachment-thumb[src="' + thisAttachmentThumbSrc + '"]');
+		$thumbToDisplay.parent().addClass('display-this-thumb');
+
+		// "play" all animated gifs and add youtube iframes to all youtube videos
+		$.each($queetThumbsClone.find('img.attachment-thumb'),function(){
+			if($(this).attr('data-mime-type') == 'image/gif'
+			&& $(this).parent().hasClass('play-button')) {
+				$(this).attr('src',$(this).attr('data-full-image-url'));
+				$(this).parent('.thumb-container').css('background-image','url(\'' + $(this).attr('data-full-image-url') + '\')');
+				}
+			else if($(this).parent().hasClass('youtube')){
+				
+				// autoplay a clicked video
+				var autoplayFlag = '';
+				if($(this).parent().hasClass('display-this-thumb')) {
+					autoplayFlag = '&autoplay=1';
+					}
+				
+				var youtubeId = $(this).attr('data-full-image-url').replace('http://www.youtube.com/watch?v=','').replace('https://www.youtube.com/watch?v=','').replace('http://youtu.be/','').replace('https://youtu.be/','').substr(0,11);
+				$(this).parent().prepend('<iframe width="510" height="315" src="//www.youtube.com/embed/' + youtubeId + '?enablejsapi=1&version=3&playerapiid=ytplayer' + autoplayFlag + '" frameborder="0" allowscriptaccess="always" allowfullscreen></iframe>');
+				}			
+			});
+				
+		// navigation buttons
+		var imgNum = parentStreamItem.children('.queet').find('.attachment-thumb').length;
+		if(imgNum > 1) {
+			$queetThumbsClone.find('.queet-thumbs').before('<div class="prev-thumb"></div>');
+			$queetThumbsClone.find('.queet-thumbs').after('<div class="next-thumb"></div>');			
+			}
+	
+		if(parentStreamItem.hasClass('expanded')) {	
+			
+			var calculatedDimensions = calculatePopUpAndImageDimensions($thumbToDisplay.attr('src'));
+			var $thisImgInQueetThumbsClone = $queetThumbsClone.find('img[src="' + $thumbToDisplay.attr('src') + '"]');
+				
+			// set dimensions
+			$thisImgInQueetThumbsClone.width(calculatedDimensions.displayImgWidth);
+			$thisImgInQueetThumbsClone.parent('.thumb-container').width(calculatedDimensions.displayImgWidth);
+			$thisImgInQueetThumbsClone.parent('.thumb-container').children('iframe').attr('width',calculatedDimensions.displayImgWidth);
+			$thisImgInQueetThumbsClone.parent('.thumb-container').children('iframe').attr('height',calculatedDimensions.displayImgHeight);			
+		
+			// open popup
+			popUpAction('queet-thumb-popup', '', '' + $queetThumbsClone.outerHTML() + '', footerHTML, calculatedDimensions.popUpWidth);
+			disableOrEnableNavigationButtonsInImagePopup($('#queet-thumb-popup'));			
+			}
+		}
+	});
+	
+// popups can be max 900px wide, and should not be higher than the window, so we need to do some calculating 			
+function calculatePopUpAndImageDimensions(img_src) {
+
+		// trick to get width and height, we can't go with what gnusocial tells us, because
+		// gnusocial doesn't (always?) report width and height after proper orientation
+		$('body').prepend('<div id="img-dimension-check" style="opacity:0;"><img src="' + img_src + '" /></div>');
+		var imgWidth = $('#img-dimension-check img').width();
+		var imgHeight = $('#img-dimension-check img').height();	
+		$('#img-dimension-check').remove();
+
+
+		// e.g. svg's may not have dimensions set, in that case we just make them small			
+		if(typeof imgWidth == 'undefined' && typeof imgHeight == 'undefined')  {
+			return {popUpWidth: 540, displayImgWidth: 540};			
+			}
+
+		var thisImgWidth = parseInt(imgWidth,10);
+		var thisImgHeight = parseInt(imgHeight,10);	
+		var maxImageHeight = $(window).height() - 120; // 120 being a little more than a short queet in the footer	
+			
+		if(thisImgWidth < 540) {
+			var displayImgWidth = thisImgWidth;
+			var popUpWidth = 540;
+			if(thisImgHeight > maxImageHeight) {
+				displayImgWidth = Math.round(maxImageHeight/thisImgHeight*displayImgWidth);
+				}
+			}
+		else if(thisImgWidth < 900) {
+			var displayImgWidth = thisImgWidth;
+			if(thisImgHeight > maxImageHeight) {
+				displayImgWidth = Math.round(maxImageHeight/thisImgHeight*displayImgWidth);
+				if(displayImgWidth < 540) {
+					var popUpWidth = 540;					
+					}
+				else {
+					var popUpWidth = displayImgWidth;					
+					}
+				}
+			else {
+				var popUpWidth = displayImgWidth;
+				}
+			}
+		else {
+			var displayImgWidth = 900;
+			var displayImgHeight = 900/thisImgWidth*thisImgHeight;
+			if(displayImgHeight > maxImageHeight) {
+				displayImgWidth = Math.round(maxImageHeight*displayImgWidth/displayImgHeight);				
+				if(displayImgWidth < 540) {
+					var popUpWidth = 540;					
+					}
+				else if(displayImgWidth < 900) {
+					var popUpWidth = displayImgWidth;					
+					}
+				else {
+					var popUpWidth = 900;
+					}
+				}
+			else {
+				var popUpWidth = 900;
+				}	
+			}	
+	return {popUpWidth: popUpWidth, displayImgWidth: displayImgWidth};
+	}
+
+// switch to next image when clicking the image in the popup
+$('body').on('click','#queet-thumb-popup .attachment-thumb',function (event) {
+	event.preventDefault();
+	
+	var nextImage = $(this).parent().next().children('.attachment-thumb');
+	if(nextImage.length>0) {
+		
+		// start and stop youtube videos, if any
+		$.each($(this).parent('.youtube').children('iframe'),function(){
+			this.contentWindow.postMessage('{"event":"command","func":"' + 'stopVideo' + '","args":""}', '*');
+			});
+		$.each(nextImage.parent('.youtube').children('iframe'),function(){
+			this.contentWindow.postMessage('{"event":"command","func":"' + 'playVideo' + '","args":""}', '*');
+			});	
+	
+		// set dimensions of next image and the popup
+		var calculatedDimensions = calculatePopUpAndImageDimensions(nextImage.attr('src'));
+		nextImage.width(calculatedDimensions.displayImgWidth);		
+		nextImage.parent('.thumb-container').width(calculatedDimensions.displayImgWidth);
+		nextImage.parent('.thumb-container').children('iframe').attr('width',calculatedDimensions.displayImgWidth);
+		nextImage.parent('.thumb-container').children('iframe').attr('height',calculatedDimensions.displayImgHeight);					
+		$('#queet-thumb-popup .modal-draggable').width(calculatedDimensions.popUpWidth);		
+	
+		// switch image
+		$(this).parent().removeClass('display-this-thumb');
+		$(this).parent().next().addClass('display-this-thumb');
+		disableOrEnableNavigationButtonsInImagePopup($('#queet-thumb-popup'));	
+		centerPopUp($('#queet-thumb-popup .modal-draggable'));					
+		}
+					
+	});
+
+// navigation buttons in image popup
+$('body').on('click','#queet-thumb-popup .next-thumb',function (event) {
+	$(this).parent().find('.display-this-thumb').children('img').trigger('click');
+	});
+$('body').on('click','#queet-thumb-popup .prev-thumb',function (event) {
+	var prevImage = $(this).parent().find('.display-this-thumb').prev().children('img');
+	if(prevImage.length>0) {
+	
+		// start and stop youtube videos, if any
+		$.each($(this).parent().find('.display-this-thumb.youtube').children('iframe'),function(){
+			this.contentWindow.postMessage('{"event":"command","func":"' + 'stopVideo' + '","args":""}', '*');
+			});
+		$.each(prevImage.parent('.youtube').children('iframe'),function(){
+			this.contentWindow.postMessage('{"event":"command","func":"' + 'playVideo' + '","args":""}', '*');
+			});
+	    
+		// set dimensions of next image and the popup
+		var calculatedDimensions = calculatePopUpAndImageDimensions(prevImage.attr('src'));
+		prevImage.width(calculatedDimensions.displayImgWidth);
+		prevImage.parent('.thumb-container').width(calculatedDimensions.displayImgWidth);
+		prevImage.parent('.thumb-container').children('iframe').attr('width',calculatedDimensions.displayImgWidth);
+		prevImage.parent('.thumb-container').children('iframe').attr('height',calculatedDimensions.displayImgHeight);							
+		$('#queet-thumb-popup .modal-draggable').width(calculatedDimensions.popUpWidth);
+	
+		// switch image
+		$(this).parent().find('.display-this-thumb').removeClass('display-this-thumb');
+		prevImage.parent().addClass('display-this-thumb');	
+		disableOrEnableNavigationButtonsInImagePopup($('#queet-thumb-popup'));
+		centerPopUp($('#queet-thumb-popup .modal-draggable'));
+		}	
+	});
+
+function disableOrEnableNavigationButtonsInImagePopup(popUp) {
+	if(popUp.find('.display-this-thumb').prev().length < 1) {
+		popUp.find('.prev-thumb').addClass('disabled');
+		}
+	else {
+		popUp.find('.prev-thumb').removeClass('disabled');		
+		}
+	if(popUp.find('.display-this-thumb').next().length < 1) {
+		popUp.find('.next-thumb').addClass('disabled');
+		}
+	else {
+		popUp.find('.next-thumb').removeClass('disabled');		
+		}		
+	}
 	
 /* · 
    · 
@@ -2025,15 +2240,15 @@ $('body').on('keyup paste input', 'div.queet-box-syntax', function() {
 	$(this).siblings('.syntax-two').html(currentVal);
 
 	// regexps for syntax highlighting
-	var allDomains = '(ac|ad|aero|af|ag|ai|al|am|an|ao|aq|arpa|asia|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|biz|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cat|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|com|coop|cr|cu|cv|cw|cx|cy|cz|de|dj|dk|dm|do|dz|ec|edu|ee|eg|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gov|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|info|int|io|iq|ir|is|it|je|jm|jobs|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mil|mk|ml|mm|mn|mobi|mp|mq|mr|ms|mt|museum|mv|mw|mx|my|mz|name|nc|net|nf|ng|ni|nl|no|np|nr|nu|nz|om|org|pa|pe|pf|pg|ph|pk|pl|pm|pn|post|pro|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|sk|sl|sm|sn|so|sr|st|su|sv|sx|sy|sz|tc|td|tel|tf|tg|th|tj|tk|tl|tm|tn|to|tp|travel|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|xxx|ye|yt|za|zm|zw|zone)|(ae|ar|as|bi|co|in|jo|mo|mu|na|ne|pr|tr)'; // needs updating
+	var allDomains = '(abb|abbott|abogado|ac|academy|accenture|accountant|accountants|active|actor|ad|ads|adult|ae|aero|af|afl|ag|agency|ai|aig|airforce|al|allfinanz|alsace|am|amsterdam|an|android|ao|apartments|aq|aquarelle|ar|archi|army|arpa|as|asia|associates|at|attorney|au|auction|audio|auto|autos|aw|ax|axa|az|ba|band|bank|bar|barclaycard|barclays|bargains|bauhaus|bayern|bb|bbc|bbva|bd|be|beer|berlin|best|bf|bg|bh|bi|bible|bid|bike|bingo|bio|biz|bj|bl|black|blackfriday|bloomberg|blue|bm|bmw|bn|bnpparibas|bo|boats|bond|boo|boutique|bq|br|bridgestone|broker|brother|brussels|bs|bt|budapest|build|builders|business|buzz|bv|bw|by|bz|bzh|ca|cab|cafe|cal|camera|camp|cancerresearch|canon|capetown|capital|caravan|cards|care|career|careers|cars|cartier|casa|cash|casino|cat|catering|cbn|cc|cd|center|ceo|cern|cf|cfa|cfd|cg|ch|channel|chat|cheap|chloe|christmas|chrome|church|ci|cisco|citic|city|ck|cl|claims|cleaning|click|clinic|clothing|club|cm|cn|co|coach|codes|coffee|college|cologne|com|community|company|computer|condos|construction|consulting|contractors|cooking|cool|coop|corsica|country|coupons|courses|cr|credit|creditcard|cricket|crs|cruises|cu|cuisinella|cv|cw|cx|cy|cymru|cyou|cz|dabur|dad|dance|date|dating|datsun|day|dclk|de|deals|degree|delivery|democrat|dental|dentist|desi|design|dev|diamonds|diet|digital|direct|directory|discount|dj|dk|dm|dnp|do|docs|dog|doha|domains|doosan|download|durban|dvag|dz|earth|eat|ec|edu|education|ee|eg|eh|email|emerck|energy|engineer|engineering|enterprises|epson|equipment|er|erni|es|esq|estate|et|eu|eurovision|eus|events|everbank|exchange|expert|exposed|express|fail|faith|fan|fans|farm|fashion|feedback|fi|film|finance|financial|firmdale|fish|fishing|fit|fitness|fj|fk|flights|florist|flowers|flsmidth|fly|fm|fo|foo|football|forex|forsale|foundation|fr|frl|frogans|fund|furniture|futbol|fyi|ga|gal|gallery|garden|gb|gbiz|gd|gdn|ge|gent|gf|gg|ggee|gh|gi|gift|gifts|gives|gl|glass|gle|global|globo|gm|gmail|gmo|gmx|gn|gold|goldpoint|golf|goo|goog|google|gop|gov|gp|gq|gr|graphics|gratis|green|gripe|gs|gt|gu|guge|guide|guitars|guru|gw|gy|hamburg|hangout|haus|healthcare|help|here|hermes|hiphop|hitachi|hiv|hk|hm|hn|hockey|holdings|holiday|homedepot|homes|honda|horse|host|hosting|house|how|hr|ht|hu|ibm|icbc|icu|id|ie|ifm|il|im|immo|immobilien|in|industries|infiniti|info|ing|ink|institute|insure|int|international|investments|io|iq|ir|irish|is|it|iwc|java|jcb|je|jetzt|jewelry|jll|jm|jo|jobs|joburg|jp|juegos|kaufen|kddi|ke|kg|kh|ki|kim|kitchen|kiwi|km|kn|koeln|komatsu|kp|kr|krd|kred|kw|ky|kyoto|kz|la|lacaixa|land|lat|latrobe|lawyer|lb|lc|lds|lease|leclerc|legal|lgbt|li|liaison|lidl|life|lighting|limited|limo|link|lk|loan|loans|lol|london|lotte|lotto|love|lr|ls|lt|ltda|lu|lupin|luxe|luxury|lv|ly|ma|madrid|maif|maison|management|mango|market|marketing|markets|marriott|mba|mc|md|me|media|meet|melbourne|meme|memorial|men|menu|mf|mg|mh|miami|mil|mini|mk|ml|mm|mma|mn|mo|mobi|moda|moe|monash|money|montblanc|mormon|mortgage|moscow|motorcycles|mov|movie|mp|mq|mr|ms|mt|mtn|mtpc|mu|museum|mv|mw|mx|my|mz|na|nadex|nagoya|name|navy|nc|ne|nec|net|network|neustar|new|news|nexus|nf|ng|ngo|nhk|ni|nico|ninja|nissan|nl|no|np|nr|nra|nrw|ntt|nu|nyc|nz|okinawa|om|one|ong|onl|online|ooo|org|organic|osaka|otsuka|ovh|pa|page|panerai|paris|partners|parts|party|pe|pf|pg|ph|pharmacy|philips|photo|photography|photos|physio|piaget|pics|pictet|pictures|pink|pizza|pk|pl|place|plumbing|plus|pm|pn|pohl|poker|porn|post|pr|praxi|press|pro|prod|productions|prof|properties|property|ps|pt|pub|pw|py|qa|qpon|quebec|racing|re|realtor|recipes|red|redstone|rehab|reise|reisen|reit|ren|rent|rentals|repair|report|republican|rest|restaurant|review|reviews|rich|rio|rip|ro|rocks|rodeo|rs|rsvp|ru|ruhr|run|rw|ryukyu|sa|saarland|sale|samsung|sandvik|sandvikcoromant|sap|sarl|saxo|sb|sc|sca|scb|schmidt|scholarships|school|schule|schwarz|science|scot|sd|se|seat|sener|services|sew|sex|sexy|sg|sh|shiksha|shoes|show|shriram|si|singles|site|sj|sk|ski|sky|sl|sm|sn|sncf|so|soccer|social|software|sohu|solar|solutions|sony|soy|space|spiegel|spreadbetting|sr|ss|st|study|style|su|sucks|supplies|supply|support|surf|surgery|suzuki|sv|swiss|sx|sy|sydney|systems|sz|taipei|tatar|tattoo|tax|taxi|tc|td|team|tech|technology|tel|temasek|tennis|tf|tg|th|thd|theater|tickets|tienda|tips|tires|tirol|tj|tk|tl|tm|tn|to|today|tokyo|tools|top|toray|toshiba|tours|town|toys|tp|tr|trade|trading|training|travel|trust|tt|tui|tv|tw|tz|ua|ug|uk|um|university|uno|uol|us|uy|uz|va|vacations|vc|ve|vegas|ventures|versicherung|vet|vg|vi|viajes|video|villas|vision|vlaanderen|vn|vodka|vote|voting|voto|voyage|vu|wales|walter|wang|watch|webcam|website|wed|wedding|weir|wf|whoswho|wien|wiki|williamhill|win|wme|work|works|world|ws|wtc|wtf|xbox|xerox|xin|测试|परीक्षा|佛山|慈善|集团|在线|한국|ভারত|八卦|موقع|বাংলা|公益|公司|移动|我爱你|москва|испытание|қаз|онлайн|сайт|срб|бел|时尚|테스트|淡马锡|орг|삼성|சிங்கப்பூர்|商标|商店|商城|дети|мкд|טעסט|工行|中文网|中信|中国|中國|娱乐|谷歌|భారత్|ලංකා|測試|ભારત|भारत|آزمایشی|பரிட்சை|网店|संगठन|餐厅|网络|укр|香港|δοκιμή|飞利浦|إختبار|台湾|台灣|手机|мон|الجزائر|عمان|ایران|امارات|بازار|پاکستان|الاردن|بھارت|المغرب|السعودية|سودان|عراق|مليسيا|澳門|政府|شبكة|გე|机构|组织机构|健康|ไทย|سورية|рус|рф|تونس|みんな|グーグル|ελ|世界|ਭਾਰਤ|网址|游戏|vermögensberater|vermögensberatung|企业|信息|مصر|قطر|广东|இலங்கை|இந்தியா|հայ|新加坡|فلسطين|テスト|政务|xxx|xyz|yachts|yandex|ye|yodobashi|yoga|yokohama|youtube|yt|za|zip|zm|zone|zuerich|zw|oracle|xn--1qqw23a|xn--30rr7y|xn--3bst00m|xn--3ds443g|xn--3e0b707e|xn--45brj9c|xn--45q11c|xn--4gbrim|xn--55qw42g|xn--55qx5d|xn--6frz82g|xn--6qq986b3xl|xn--80adxhks|xn--80ao21a|xn--80asehdb|xn--80aswg|xn--90a3ac|xn--90ais|xn--9et52u|xn--b4w605ferd|xn--c1avg|xn--cg4bki|xn--clchc0ea0b2g2a9gcd|xn--czr694b|xn--czrs0t|xn--czru2d|xn--d1acj3b|xn--d1alf|xn--estv75g|xn--fiq228c5hs|xn--fiq64b|xn--fiqs8s|xn--fiqz9s|xn--fjq720a|xn--flw351e|xn--fpcrj9c3d|xn--fzc2c9e2c|xn--gecrj9c|xn--h2brj9c|xn--hxt814e|xn--i1b6b1a6a2e|xn--imr513n|xn--io0a7i|xn--j1amh|xn--j6w193g|xn--kcrx77d1x4a|xn--kprw13d|xn--kpry57d|xn--kput3i|xn--l1acc|xn--lgbbat1ad8j|xn--mgb9awbf|xn--mgba3a4f16a|xn--mgbaam7a8h|xn--mgbab2bd|xn--mgbayh7gpa|xn--mgbbh1a71e|xn--mgbc0a9azcg|xn--mgberp4a5d4ar|xn--mgbpl2fh|xn--mgbx4cd0ab|xn--mxtq1m|xn--ngbc5azd|xn--node|xn--nqv7f|xn--nqv7fs00ema|xn--nyqy26a|xn--o3cw4h|xn--ogbpf8fl|xn--p1acf|xn--p1ai|xn--pgbs0dh|xn--q9jyb4c|xn--qcka1pmc|xn--rhqv96g|xn--s9brj9c|xn--ses554g|xn--unup4y|xn--vermgensberater-ctb|xn--vermgensberatung-pwb|xn--vhquv|xn--vuq861b|xn--wgbh1c|xn--wgbl6a|xn--xhq521b|xn--xkc2al3hye2a|xn--xkc2dl3a5ee0h|xn--y9a3aq|xn--yfro4i67o|xn--ygbi2ammx|xn--zfr164b)';
 	var regexps = Object();
 	regexps.externalMention = XRegExp.cache('(^|\\s|\\.|<br>)(@)[a-zA-Z0-9]+(@)[\\p{L}\\p{N}\\-\\.]+(\\.)(' + allDomains + ')($|\\s|\\.|\\,|\\:|\\-|\\<|\\!|\\?|\\&)');		
 	regexps.mention = /(^|\s|\.|<br>)(@)[a-zA-Z0-9]+($|\s|\.|\,|\:|\-|\<|\!|\?|\&)/;				
 	regexps.tag = XRegExp.cache('(^|\\s|\\.|<br>)(\\#)[\\p{L}\\p{N}\\-\\.]+($|\\s|\\.|\\,|\\:|\\-|\\<|\\!|\\?|\\&)');	
 	regexps.group = /(^|\s|\.|<br>)(\!)[a-zA-Z0-9]+($|\s|\.|\,|\:|\-|\<|\!|\?|\&)/;					
-	regexps.url = /(^|\s|\.|<br>|&nbsp;)(http\:\/\/|https\:\/\/)([\wåäö\-\.]+)?(\.)((ac|ad|aero|af|ag|ai|al|am|an|ao|aq|arpa|asia|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|biz|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cat|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|com|coop|cr|cu|cv|cw|cx|cy|cz|dev|dj|dk|dm|do|dz|ec|edu|ee|eg|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gov|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|info|int|io|iq|ir|is|it|je|jm|jobs|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mil|mk|ml|mm|mn|mobi|mp|mq|mr|ms|mt|museum|mv|mw|mx|my|mz|name|nc|net|nf|ng|ni|nl|no|np|nr|nu|nz|om|org|pa|pe|pf|pg|ph|pk|pl|pm|pn|post|pro|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|sk|sl|sm|sn|so|sr|st|su|sv|sx|sy|sz|tc|td|tel|tf|tg|th|tj|tk|tl|tm|tn|to|tp|travel|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|xxx|ye|yt|za|zm|zw|zone)|(ae|ar|as|bi|co|de|in|jo|mo|mu|na|ne|pr|tr))(\/[\wåäö\%\!\*\'\(\)\;\:\@\&\=\+\$\,\/\?\#\[\]\-\_\.\~]+)?(\/)?($|\s|\,|\:|\-|\<|\!|\?|\&)/;		
-	regexps.urlWithoutProtocol = /(^|\s|\.|<br>|&nbsp;)[\wåäö\-\.]+(\.)((ac|ad|aero|af|ag|ai|al|am|an|ao|aq|arpa|asia|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|biz|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cat|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|com|coop|cr|cu|cv|cw|cx|cy|cz|de|dj|dk|dm|do|dz|ec|edu|ee|eg|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gov|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|info|int|io|iq|ir|is|it|je|jm|jobs|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mil|mk|ml|mm|mn|mobi|mp|mq|mr|ms|mt|museum|mv|mw|mx|my|mz|name|nc|net|nf|ng|ni|nl|no|np|nr|nu|nz|om|org|pa|pe|pf|pg|ph|pk|pl|pm|pn|post|pro|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|sk|sl|sm|sn|so|sr|st|su|sv|sx|sy|sz|tc|td|tel|tf|tg|th|tj|tk|tl|tm|tn|to|tp|travel|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|xxx|ye|yt|za|zm|zw|zone)|(ae|ar|as|bi|co|in|jo|mo|mu|na|ne|pr|tr))(\/[\wåäö\%\!\*\'\(\)\;\:\@\&\=\+\$\,\/\?\#\[\]\-\_\.\~]+)?(\/)?($|\s|\.|\,|\:|\-|\<|\!|\?|\&)/;
-	regexps.email = /(^|\s|\.|<br>)([a-zA-Z0-9\!\#\$\%\&\'\*\+\-\/\=\?\^\_\`\{\|\}\~\.]+)?(@)[\wåäö\-\.]+(\.)((ac|ad|aero|af|ag|ai|al|am|an|ao|aq|arpa|asia|at|au|aw|ax|az|ba|bb|bd|be|bf|bg|bh|biz|bj|bm|bn|bo|br|bs|bt|bv|bw|by|bz|ca|cat|cc|cd|cf|cg|ch|ci|ck|cl|cm|cn|com|coop|cr|cu|cv|cw|cx|cy|cz|de|dj|dk|dm|do|dz|ec|edu|ee|eg|er|es|et|eu|fi|fj|fk|fm|fo|fr|ga|gb|gd|ge|gf|gg|gh|gi|gl|gm|gn|gov|gp|gq|gr|gs|gt|gu|gw|gy|hk|hm|hn|hr|ht|hu|id|ie|il|im|info|int|io|iq|ir|is|it|je|jm|jobs|jp|ke|kg|kh|ki|km|kn|kp|kr|kw|ky|kz|la|lb|lc|li|lk|lr|ls|lt|lu|lv|ly|ma|mc|md|me|mg|mh|mil|mk|ml|mm|mn|mobi|mp|mq|mr|ms|mt|museum|mv|mw|mx|my|mz|name|nc|net|nf|ng|ni|nl|no|np|nr|nu|nz|om|org|pa|pe|pf|pg|ph|pk|pl|pm|pn|post|pro|ps|pt|pw|py|qa|re|ro|rs|ru|rw|sa|sb|sc|sd|se|sg|sh|si|sj|sk|sl|sm|sn|so|sr|st|su|sv|sx|sy|sz|tc|td|tel|tf|tg|th|tj|tk|tl|tm|tn|to|tp|travel|tt|tv|tw|tz|ua|ug|uk|us|uy|uz|va|vc|ve|vg|vi|vn|vu|wf|ws|xxx|ye|yt|za|zm|zw|zone)|(ae|ar|as|bi|co|in|jo|mo|mu|na|ne|pr|tr))($|\s|\.|\,|\:|\-|\<|\!|\?|\&)/;			
+	regexps.url = XRegExp.cache('(^|\\s|\\.|<br>|&nbsp;)(http\\:\\/\\/|https\:\\/\\/)([\\p{L}\\p{N}\\-\\.]+)?(\\.)(' + allDomains + ')(\\/[\\p{L}\\p{N}\\%\\!\\*\\\'\\(\\)\\;\\:\\@\\&\\=\\+\\$\\,\\/\\?\\#\\[\\]\\-\\_\\.\\~]+)?(\\/)?($|\\s|\\,|\\:|\\-|\\<|\\!|\\?|\\&)');
+	regexps.urlWithoutProtocol = XRegExp.cache('(^|\\s|\\.|<br>|&nbsp;)[\\p{L}\\p{N}\\-\\.]+(\\.)(' + allDomains + ')(\\/[\\p{L}\\p{N}\\%\\!\\*\\\'\\(\\)\\;\\:\\@\\&\\=\\+\\$\\,\\/\\?\\#\\[\\]\\-\\_\\.\\~]+)?(\\/)?($|\\s|\\.|\\,|\\:|\\-|\\<|\\!|\\?|\\&)');
+	regexps.email = XRegExp.cache('(^|\\s|\\.|<br>)([a-zA-Z0-9\\!\\#\\$\\%\\&\\\'\\*\\+\\-\\/\\=\\?\\^\\_\\`\\{\\|\\}\\~\\.]+)?(@)[\\p{L}\\p{N}\\-\\.]+(\\.)(' + allDomains + ')($|\\s|\\.|\\,|\\:|\\-|\\<|\\!|\\?|\\&)');			
 
 	// loop through the regexps and highlight
 	$.each(regexps,function(k,v){
@@ -2175,7 +2390,8 @@ $('body').on('keyup', 'div.queet-box-syntax', function(e) {
 				
 				// see if anyone we're following matches 
 				var suggestionsToShow = [];
-				var suggestionsUsernameCount = {};				
+				var suggestionsUsernameCount = {};
+				suggestionsUsernameCount[window.loggedIn.screen_name] = 1; // any suggestions with the same screen name as mine will get their server url added
 				$.each(window.following,function(){
 					var userregex = new RegExp(term);
 					if(this.username.toLowerCase().match(userregex) || this.name.toLowerCase().match(userregex)) {
@@ -2348,16 +2564,32 @@ $('body').on('click','.edit-profile-button',function(){
 				// save colors on change
 				$('#link-color-selection').minicolors({
 					change: function(hex) {
-						changeDesign({linkcolor:hex});
-						postNewLinkColor(hex.substring(1));
-						window.loggedIn.linkcolor = hex.substring(1);
+						
+						// pause for 500ms before saving and displaying color changes
+						window.changeToLinkColor = hex;
+						setTimeout(function(){
+							if(hex == window.changeToLinkColor) {
+								changeDesign({linkcolor:hex});
+								postNewLinkColor(hex.substring(1));
+								window.loggedIn.linkcolor = hex.substring(1);								
+								}
+							},500);
+							
 						}
 					});
 				$('#background-color-selection').minicolors({
 					change: function(hex) {
-						changeDesign({backgroundcolor:hex});
-						postNewBackgroundColor(hex.substring(1));
-						window.loggedIn.backgroundcolor = hex.substring(1);
+
+						// pause for 500ms before saving and displaying color changes
+						window.changeToBackgroundColor = hex;
+						setTimeout(function(){
+							if(hex == window.changeToBackgroundColor) {
+								changeDesign({backgroundcolor:hex});
+								postNewBackgroundColor(hex.substring(1));
+								window.loggedIn.backgroundcolor = hex.substring(1);								
+								}
+							},500);
+
 						}
 					});
 				// also on keyup in input (minicolors 'change' event does not do this, apparently)

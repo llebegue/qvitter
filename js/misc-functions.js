@@ -702,19 +702,21 @@ function changeLinkColor(newLinkColor) {
 		return false;
 		}
 	
-	var headStyle = $('head').children('style');
-	var linkstyle = headStyle.text();
-	headStyle.text(linkstyle.substring(0,linkstyle.indexOf('color:')+6) + validHexColor + linkstyle.substring(linkstyle.indexOf(';/*COLOREND*/')));
-	var linkstyle = headStyle.html();
-	headStyle.text(linkstyle.substring(0,linkstyle.indexOf('background-color:')+17) + validHexColor + linkstyle.substring(linkstyle.indexOf(';/*BACKGROUNDCOLOREND*/')));		
-	var linkstyle = headStyle.html();
-	headStyle.text(linkstyle.substring(0,linkstyle.indexOf('border-color:')+13) + validHexColor + linkstyle.substring(linkstyle.indexOf(';/*BORDERCOLOREND*/')));		
-	var linkstyle = headStyle.html();
-	headStyle.text(linkstyle.substring(0,linkstyle.indexOf('background-color:rgb(')+17) + blendRGBColors(hex2rgb(validHexColor),'rgb(255,255,255)',0.8) + linkstyle.substring(linkstyle.indexOf(';/*LIGHTERBACKGROUNDCOLOREND*/')));		
-	var linkstyle = headStyle.html();
-	headStyle.text(linkstyle.substring(0,linkstyle.indexOf('border-color:rgb(')+13) + blendRGBColors(hex2rgb(validHexColor),'rgb(255,255,255)',0.6) + linkstyle.substring(linkstyle.indexOf(';/*LIGHTERBORDERCOLOREND*/')));		
-	var linkstyle = headStyle.html();
-	headStyle.text(linkstyle.substring(0,linkstyle.indexOf('border-bottom-color:rgb(')+20) + blendRGBColors(hex2rgb(validHexColor),'rgb(255,255,255)',0.8) + linkstyle.substring(linkstyle.indexOf(';/*LIGHTERBORDERBOTTOMCOLOREND*/')));		
+	var lighterColor08 = blendRGBColors(hex2rgb(validHexColor),'rgb(255,255,255)',0.8);
+	var lighterColor06 = blendRGBColors(hex2rgb(validHexColor),'rgb(255,255,255)',0.6)
+	
+	var headStyle = $('#dynamic-styles').children('style');
+	var headStyleText = headStyle.text();
+	headStyleText = replaceFromStringEndToStringStart(headStyleText,'/*COLORSTART*/','/*COLOREND*/',validHexColor);
+	headStyleText = replaceFromStringEndToStringStart(headStyleText,'/*BACKGROUNDCOLORSTART*/','/*BACKGROUNDCOLOREND*/',validHexColor);
+	headStyleText = replaceFromStringEndToStringStart(headStyleText,'/*BORDERCOLORSTART*/','/*BORDERCOLOREND*/',validHexColor);
+	headStyleText = replaceFromStringEndToStringStart(headStyleText,'/*LIGHTERBACKGROUNDCOLORSTART*/','/*LIGHTERBACKGROUNDCOLOREND*/',lighterColor08);
+	headStyleText = replaceFromStringEndToStringStart(headStyleText,'/*LIGHTERBORDERCOLORSTART*/','/*LIGHTERBORDERCOLOREND*/',lighterColor06);
+	headStyleText = replaceFromStringEndToStringStart(headStyleText,'/*LIGHTERBORDERBOTTOMCOLORSTART*/','/*LIGHTERBORDERBOTTOMCOLOREND*/',lighterColor08);				
+	headStyle.text(headStyleText);
+	}
+function replaceFromStringEndToStringStart(string,fromStringEnd,toStringStart,withString) {
+	return string.substring(0,string.indexOf(fromStringEnd)+fromStringEnd.length) + withString + string.substring(string.indexOf(toStringStart));			
 	}
 function blendRGBColors(c0, c1, p) {
     var f=c0.split(","),t=c1.split(","),R=parseInt(f[0].slice(4)),G=parseInt(f[1]),B=parseInt(f[2]);
@@ -761,13 +763,22 @@ function detectRTL(s) {
 		if(rtlDirCheck.test(RTLorLTR[i])) { RTLnum++; }
 		else { LTRnum++; }
 		} 
+
     // if there are more rtl chars than ltr
-    if(RTLnum > LTRnum) { $streamItem.children('.stream-item').children('.queet').addClass('rtl'); }
-    // if no chars (that we are interested, but body is set to rtl)
-    else if ($queetText.html().length==0 && $('body').hasClass('rtl')) {
+    // or if no chars (that we are interested, but body is set to rtl)
+    if(RTLnum > LTRnum
+    || ($queetText.html().length==0 && $('body').hasClass('rtl'))) {
     	$streamItem.children('.stream-item').children('.queet').addClass('rtl');
-    	}	    	    	    	
-	return $streamItem.html().replace(/@<a/gi,'<a').replace(/!<a/gi,'<a').replace(/@<span class="vcard">/gi,'<span class="vcard">').replace(/!<span class="vcard">/gi,'<span class="vcard">').replace(/#<span class="tag">/gi,'<span class="tag">'); // hacky way to get @#! into mention tags to stop bidirection (css sets an @ with before content method)
+    	}
+    else {
+		// for ltr languages we move @, ! and # to inside
+    	$streamItem.find('.queet-text').find('.h-card.mention').prepend('@');
+    	$streamItem.find('.queet-text').find('.h-card.group').prepend('!');  
+    	$streamItem.find('.queet-text').find('a[rel="tag"]').prepend('#');    	  	    	
+    	}
+
+	// we remove @, ! and #, they are added as pseudo elements, or have been moved to the inside
+   	return $streamItem.html().replace(/@<a/gi,'<a').replace(/!<a/gi,'<a').replace(/@<span class="vcard">/gi,'<span class="vcard">').replace(/!<span class="vcard">/gi,'<span class="vcard">').replace(/#<span class="tag">/gi,'<span class="tag">');    	    
 	}
 	
 	

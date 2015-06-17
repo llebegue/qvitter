@@ -38,7 +38,9 @@ const QVITTERDIR = __DIR__;
 
 class QvitterPlugin extends Plugin {
 
-	public function settings($setting)
+    protected $hijack_ui = true;
+
+	static function settings($setting)
 	{
 	
  	/* · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
@@ -61,6 +63,9 @@ class QvitterPlugin extends Plugin {
 
 		// DEFAULT FAVICON
 		$settings['favicon'] = 'img/favicon.ico?v=5';
+
+		// DEFAULT SPRITE
+		$settings['sprite'] = Plugin::staticPath('Qvitter', '').'img/sprite.png?v=40';
 
 		// DEFAULT LINK COLOR
 		$settings['defaultlinkcolor'] = '#0084B4';
@@ -110,7 +115,25 @@ class QvitterPlugin extends Plugin {
 			return false;
 		}
 	}
-	
+
+    public function initialize()
+    {
+		// check if we should reroute UI to qvitter
+		$scoped = Profile::current();
+		$qvitter_enabled_by_user = false;
+		$qvitter_disabled_by_user = false;
+		if ($scoped instanceof Profile) {
+			$qvitter_enabled_by_user = $scoped->getPref('qvitter', 'enable_qvitter', false);
+			$qvitter_disabled_by_user = $scoped->getPref('qvitter', 'disable_qvitter', false);
+		}
+
+		$this->hijack_ui = (self::settings('enabledbydefault') && !$scoped)
+                            || (self::settings('enabledbydefault') && !$qvitter_disabled_by_user)
+                            || (!self::settings('enabledbydefault') && $qvitter_enabled_by_user);
+
+        // show qvitter link in the admin panel
+        common_config_append('admin', 'panels', 'qvitteradm');
+    }
 	
     // make sure we have a notifications table
     function onCheckSchema()
@@ -160,31 +183,10 @@ class QvitterPlugin extends Plugin {
                     array('action' => 'qvittersettings'));
         $m->connect('panel/qvitter',
                     array('action' => 'qvitteradminsettings')); 
-        common_config_append('admin', 'panels', 'qvitteradm');
         $m->connect('main/qlogin',
                     array('action' => 'qvitterlogin'));                    		
 		
-		// check if we should reroute UI to qvitter
-		$logged_in_user = common_current_user();
-		$qvitter_enabled_by_user = false;
-		$qvitter_disabled_by_user = false;		
-		if($logged_in_user) {
-			try {
-				$qvitter_enabled_by_user = Profile_prefs::getData($logged_in_user->getProfile(), 'qvitter', 'enable_qvitter');
-			} catch (NoResultException $e) {
-				$qvitter_enabled_by_user = false;
-			}
-			try {
-				$qvitter_disabled_by_user = Profile_prefs::getData($logged_in_user->getProfile(), 'qvitter', 'disable_qvitter');
-			} catch (NoResultException $e) {
-				$qvitter_disabled_by_user = false;
-			}		
-		}					
-		
-		if((self::settings('enabledbydefault') && !$logged_in_user) ||
-		   (self::settings('enabledbydefault') && !$qvitter_disabled_by_user) || 
-		  (!self::settings('enabledbydefault') && $qvitter_enabled_by_user)) {
-		
+        if ($this->hijack_ui) {
 			$m->connect('', array('action' => 'qvitter'));      
 			$m->connect('main/all', array('action' => 'qvitter'));              
 			$m->connect('search/notice', array('action' => 'qvitter')); 
@@ -246,9 +248,9 @@ class QvitterPlugin extends Plugin {
 		}					
 		
 		// if qvitter is opt-out, disable the default register page (if we don't have a valid invitation code)
-        if(isset($_POST['code'])) {
-			$valid_code = Invitation::getKV('code', $_POST['code']);			
-			}
+        $valid_code = isset($_POST['code'])
+                        ? Invitation::getKV('code', $_POST['code'])
+                        : null;
 		if(self::settings('enabledbydefault') && empty($valid_code)) {
 			$m->connect('main/register',
 						array('action' => 'qvitter')); 			
@@ -417,19 +419,47 @@ class QvitterPlugin extends Plugin {
         if (!empty($attachments)) {
             foreach ($attachments as $attachment) {
 				if(is_object($attachment)) {                 
-                try {
-                    $enclosure_o = $attachment->getEnclosure();
-	                $thumb = $attachment->getThumbnail();
-	                $attachment_url_to_id[$enclosure_o->url]['id'] = $attachment->id;
-	                $attachment_url_to_id[$enclosure_o->url]['thumb_url'] = $thumb->getUrl();
-                } catch (ServerException $e) {
-					$thumb = File_thumbnail::getKV('file_id', $attachment->id);
-					if ($thumb instanceof File_thumbnail) {
+					try {
+						$enclosure_o = $attachment->getEnclosure();
+						$thumb = $attachment->getThumbnail();
+										
 						$attachment_url_to_id[$enclosure_o->url]['id'] = $attachment->id;
-						$attachment_url_to_id[$enclosure_o->url]['thumb_url'] = $thumb->getUrl();
+						$attachment_url_to_id[$enclosure_o->url]['thumb_url'] = $thumb->getUrl();							
+						$attachment_url_to_id[$enclosure_o->url]['width'] = $attachment->width;
+						$attachment_url_to_id[$enclosure_o->url]['height'] = $attachment->height;	                
+						
+						// animated gif?
+						if($attachment->mimetype == 'image/gif') {
+							$image = ImageFile::fromFileObject($attachment);
+							if($image->animated == 1) {
+								$attachment_url_to_id[$enclosure_o->url]['animated'] = true;
+							}
+							else {
+								$attachment_url_to_id[$enclosure_o->url]['animated'] = false;								
+							}
+						}
+						
+					} catch (ServerException $e) {
+						$thumb = File_thumbnail::getKV('file_id', $attachment->id);
+						if ($thumb instanceof File_thumbnail) {
+							$attachment_url_to_id[$enclosure_o->url]['id'] = $attachment->id;
+							$attachment_url_to_id[$enclosure_o->url]['thumb_url'] = $thumb->getUrl();
+							$attachment_url_to_id[$enclosure_o->url]['width'] = $attachment->width;
+							$attachment_url_to_id[$enclosure_o->url]['height'] = $attachment->height;	
+							
+							// animated gif?
+							if($attachment->mimetype == 'image/gif') {
+								$image = ImageFile::fromFileObject($attachment);
+								if($image->animated == 1) {
+									$attachment_url_to_id[$enclosure_o->url]['animated'] = true;
+								}
+								else {
+									$attachment_url_to_id[$enclosure_o->url]['animated'] = false;								
+								}
+							}							                
 						} 
-                }
-            }
+					}
+            	}
             }
         }
 		
@@ -438,24 +468,22 @@ class QvitterPlugin extends Plugin {
             foreach ($twitter_status['attachments'] as &$attachment) {
                 if (!empty($attachment_url_to_id[$attachment['url']])) {
                     $attachment['id'] = $attachment_url_to_id[$attachment['url']]['id'];
-                    
-                    // if the attachment is other than image, and we have a thumb (e.g. videos),
-                    // we include the default thumbnail url
-                    if(substr($attachment['mimetype'],0,5) != 'image') {
-                    	$attachment['thumb_url'] = $attachment_url_to_id[$attachment['url']]['thumb_url'];
-                   	}
+                    $attachment['width'] = $attachment_url_to_id[$attachment['url']]['width'];
+					$attachment['height'] = $attachment_url_to_id[$attachment['url']]['height'];				                   
+                   	$attachment['thumb_url'] = $attachment_url_to_id[$attachment['url']]['thumb_url'];
+                   	if(isset($attachment_url_to_id[$attachment['url']]['animated'])) {
+	                   	$attachment['animated'] = $attachment_url_to_id[$attachment['url']]['animated'];                   		
+                   		}
                 }
             }
         }		
         
 		// reply-to profile url
-		$twitter_status['in_reply_to_profileurl'] = null;
-        if ($notice->reply_to) {
-            $reply = Notice::getKV(intval($notice->reply_to));
-            if ($reply) {
-                $replier_profile = $reply->getProfile();
-				$twitter_status['in_reply_to_profileurl'] = $replier_profile->profileurl;
-			}
+        try {
+            $reply = $notice->getParent();
+			$twitter_status['in_reply_to_profileurl'] = $reply->getProfile()->getUrl();
+        } catch (ServerException $e) {
+		    $twitter_status['in_reply_to_profileurl'] = null;
         }
 
 
@@ -516,10 +544,16 @@ class QvitterPlugin extends Plugin {
     function insertNotification($to_profile_id, $from_profile_id, $ntype, $notice_id=false)
     {
 		
-		// no notifications from blocked profiles
 		$to_user = User::getKV('id', $to_profile_id);
-		$from_user = Profile::getKV($from_profile_id);
-		if ($to_user instanceof User && $to_user->hasBlocked($from_user)) {
+		$from_profile = Profile::getKV($from_profile_id);
+
+		// don't notify remote profiles
+		if (!$to_user instanceof User) {
+			return false;
+			}
+
+		// no notifications from blocked profiles
+		if ($to_user->hasBlocked($from_profile)) {
 			return false;
 			}
 		
@@ -578,6 +612,7 @@ class QvitterPlugin extends Plugin {
      * @return boolean hook flag
      */
     function onStartNoticeDistribute($notice) {
+
         assert($notice->id > 0);    // since we removed tests below
 
 		// don't add notifications for activity type notices
@@ -624,29 +659,28 @@ class QvitterPlugin extends Plugin {
 				}
 			}
 
-			// check for mentions to insert in notifications
-			$mentions = common_find_mentions($notice->content, $notice);
+			// check for mentions to insert in notifications			
+			$mentions = $notice->getReplies();
 			$sender = Profile::getKV($notice->profile_id);        
 			$all_mentioned_user_ids = array();
-			foreach ($mentions as $mention) {
-				foreach ($mention['mentioned'] as $mentioned) {
-					
-					// no duplicate mentions
-					if(in_array($mentioned->id, $all_mentioned_user_ids)) {
-						continue;
-						}					
-					$all_mentioned_user_ids[] = $mentioned->id;
-				
-					// only notify if mentioned user is not already notified for reply
-					if($reply_notification_to != $mentioned->id) {
-						$this->insertNotification($mentioned->id, $notice->profile_id, 'mention', $notice->id);                	
-						}
+			foreach ($mentions as $mentioned) {					
+
+				// no duplicate mentions
+				if(in_array($mentioned, $all_mentioned_user_ids)) {
+					continue;
+					}					
+				$all_mentioned_user_ids[] = $mentioned;
+			
+				// only notify if mentioned user is not already notified for reply
+				if($reply_notification_to != $mentioned) {
+					$this->insertNotification($mentioned, $notice->profile_id, 'mention', $notice->id);                	
 					}
-				}		 			
+				}						 			
  			}
 		
         return true;
     	}
+    
 
    /**
      * Delete any notifications tied to deleted notices and un-repeats
@@ -796,10 +830,10 @@ class QvitterPlugin extends Plugin {
     	}
         
         
-    function onPluginVersion(&$versions)
+    function onPluginVersion(array &$versions)
     {
         $versions[] = array('name' => 'Qvitter',
-                            'version' => '4',
+                            'version' => '5-alpha',
                             'author' => 'Hannes Mannerheim',
                             'homepage' => 'https://github.com/hannesmannerheim/qvitter',
                             'rawdescription' => _m('User interface'));
@@ -904,18 +938,15 @@ class QvitterPlugin extends Plugin {
  */
 class URLMapperOverwrite extends URLMapper
 {
-    function overwrite_variable($m, $path, $args, $paramPatterns, $newaction)
+    static function overwrite_variable($m, $path, $args, $paramPatterns, $newaction)
     {
     
         $m->connect($path, array('action' => $newaction), $paramPatterns);	
 		
-		$regex = URLMapper::makeRegex($path, $paramPatterns);
+		$regex = self::makeRegex($path, $paramPatterns);
 	
 		foreach($m->variables as $n=>$v)
 			if($v[1] == $regex) 
 				$m->variables[$n][0]['action'] = $newaction;
     }
 }
-
-
-?>
