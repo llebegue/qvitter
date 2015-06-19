@@ -333,11 +333,6 @@ $(window).load(function() {
 		window.selectedLanguage = 'en';
 		}	
 
-	// if this is a RTL-language, add rtl class to body
-	if(window.selectedLanguage == 'ar'
-	|| window.selectedLanguage == 'fa') {
-		$('body').addClass('rtl');
-		}
 				
 	// if we already have this version of this language in localstorage, we
 	// use that cached version. we do this because $.ajax doesn't respect caching, it seems
@@ -366,6 +361,11 @@ $(window).load(function() {
 // proceed to set language and login
 function proceedToSetLanguageAndLogin(data){
 	window.sL = data;
+
+	// if this is a RTL-language, add rtl class to body
+	if(window.sL.directionality == 'rtl') {
+		$('body').addClass('rtl');
+		}
 
 	window.siteTitle = $('head title').html(); // remember this for later use
 
@@ -2410,7 +2410,7 @@ $('body').on('keyup', 'div.queet-box-syntax', function(e) {
 				// show matches
 				$.each(suggestionsToShow,function(){
 					var serverHtml = '';
-					if(suggestionsUsernameCount[this.username]>1) {
+					if(suggestionsUsernameCount[this.username]>1 && this.url !== false) {
 						serverHtml = '@' + this.url;
 						}
 					queetBox.siblings('.mentions-suggestions').append('<div title="@' + this.username + serverHtml + '"><img height="24" width="24" src="' + this.avatar + '" /><strong>' + this.name + '</strong> @<span>' + this.username + serverHtml + '</span></div>')				
@@ -2901,6 +2901,9 @@ function coverPhotoAndAvatarSelectAndCrop(e, coverOrAvatar) {
 						$('#' + cropId).parent().css('left','50%')
 						$('#' + cropId).parent().css('margin-left','-' + (targetWidth/2) + 'px')
 						$('#' + cropId).parent().siblings('.profile-header-inner').children('div,input,a').css('display','none');
+						
+						// replace the hardcoded "click to drag" string
+						$('#' + cropId).siblings('.jwc_controls').children('span').html(window.sL.clickToDrag);
 						
 						window.jwc = $('#' + cropId).getjWindowCrop();		
 					
