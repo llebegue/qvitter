@@ -1,10 +1,10 @@
 <?php
- /* · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·  
+ /* · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
   ·                                                                             ·
   ·                                                                             ·
   ·                             Q V I T T E R                                   ·
   ·                                                                             ·
-  ·              http://github.com/hannesmannerheim/qvitter                     ·
+  ·                      https://git.gnu.io/h2p/Qvitter                         ·
   ·                                                                             ·
   ·                                                                             ·
   ·                                 <o)                                         ·
@@ -14,7 +14,7 @@
   ·                                   o> \\\\_\                                 ·
   ·                                 \\)   \____)                                ·
   ·                                                                             ·
-  ·                                                                             ·    
+  ·                                                                             ·
   ·                                                                             ·
   ·  Qvitter is free  software:  you can  redistribute it  and / or  modify it  ·
   ·  under the  terms of the GNU Affero General Public License as published by  ·
@@ -30,7 +30,7 @@
   ·  along with Qvitter. If not, see <http://www.gnu.org/licenses/>.            ·
   ·                                                                             ·
   ·  Contact h@nnesmannerhe.im if you have any questions.                       ·
-  ·                                                                             · 
+  ·                                                                             ·
   · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · */
 
 if (!defined('STATUSNET')) {
@@ -65,7 +65,7 @@ class ApiTimelinePublicAndExternalAction extends ApiPrivateAuthAction
      * @return boolean success flag
      *
      */
-    function prepare($args)
+    protected function prepare(array $args=array())
     {
         parent::prepare($args);
 
@@ -79,13 +79,11 @@ class ApiTimelinePublicAndExternalAction extends ApiPrivateAuthAction
      *
      * Just show the notices
      *
-     * @param array $args $_REQUEST data (unused)
-     *
      * @return void
      */
-    function handle($args)
+    protected function handle()
     {
-        parent::handle($args);
+        parent::handle();
         $this->showTimeline();
     }
 
